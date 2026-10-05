@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b0b0a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Racha">
 <title>Racha Hábitos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -361,6 +364,27 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
+
+/* Acceso */
+body.gate .status, body.gate .nav { display: none; }
+.login { min-height: 78vh; display: grid; align-content: center; gap: 28px; padding-block: 24px; }
+.login .mark { width: 76px; height: 76px; border-radius: 26px; background: var(--accent); color: var(--accent-ink); display: grid; place-items: center; }
+.login .mark svg { width: 40px; height: 40px; stroke-width: 2.6; }
+.login h1 { font-size: clamp(40px, 12vw, 58px); text-transform: uppercase; }
+.login p { margin: 0; color: var(--muted); font-weight: 600; max-width: 34ch; }
+.gbtn { display: inline-flex; align-items: center; justify-content: center; gap: 12px; width: 100%; padding: 16px 20px; border-radius: 18px; border: 2px solid var(--fg); background: var(--fg); color: #111; font-weight: 900; font-size: 15px; letter-spacing: .02em; }
+.gbtn svg { width: 22px; height: 22px; }
+.gbtn:disabled { opacity: .5; }
+.login .err { color: var(--heart); font-weight: 700; font-size: 13px; }
+.avatar img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.member .pos img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+.member .pos { overflow: hidden; }
+.code { font-family: var(--font-display); font-weight: 900; font-stretch: 125%; font-size: 34px; letter-spacing: .12em; color: var(--accent); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.stepper { display: inline-flex; align-items: center; gap: 14px; }
+.stepper button { width: 46px; height: 46px; border-radius: 14px; border: 2px solid var(--line); background: var(--bg); font-weight: 900; font-size: 22px; }
+.stepper b { font-family: var(--font-display); font-weight: 900; font-stretch: 115%; font-size: 26px; min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; justify-content: center; }
+.mode { font-size: 11px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 </style>
 </head>
 <body>
@@ -389,664 +413,848 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
 <div id="sheet" hidden></div>
 <div id="toast" class="toast" hidden></div>
 
-<script>
-(function () {
-  "use strict";
+<script type="module">
+import { firebaseConfig } from "./firebase-config.js";
 
-  /* ---------- Iconos (trazo, 24x24) ---------- */
-  const ICONS = {
-    check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
-    star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
-    flame: '<path d="M12 21c-3.9 0-7-2.8-7-6.6 0-3.4 2.4-5.4 3.6-7.9.4 1.8 1.4 3 2.6 3.6C11 7 12.6 4.6 15 3c-.3 2.6.5 4.4 2 6.2 1.3 1.5 2 3.2 2 5.2 0 3.8-3.1 6.6-7 6.6z"/><path d="M12 21c-1.7 0-3-1.2-3-2.9 0-1.9 1.6-2.8 2.2-4.3.9 1.1 3.8 2.2 3.8 4.3 0 1.7-1.3 2.9-3 2.9z"/>',
-    coin: '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M8 9.5v5M16 9.5v5M10.5 12h3"/>',
-    gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
-    list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
-    target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
-    chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
-    plus: '<path d="M12 5v14M5 12h14"/>',
-    book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
-    run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5.5 3 2.5V22M8 11l3-3 3 2 3 1M11 8l1.5 5.5"/>',
-    water: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/>',
-    moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/>',
-    leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l7-7"/>',
-    brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h.5V4z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h-.5V4z"/>',
-    dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
-    pen: '<path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/>',
-    phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M4 4l16 16"/>',
-    snow: '<path d="M12 2v20M4 7l16 10M20 7L4 17"/>',
-    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>'
-  };
-  const HABIT_ICONS = ["book", "run", "water", "moon", "leaf", "brain", "dumbbell", "pen", "phone"];
-  function icon(name) {
-    return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || ICONS.star) + "</svg>";
-  }
-  function paintIcons(root) {
-    root.querySelectorAll("svg[data-i]").forEach(function (el) {
-      el.outerHTML = icon(el.getAttribute("data-i"));
-    });
-  }
+/* ---------- Iconos (trazo, 24x24) ---------- */
+const ICONS = {
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  star: '<path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z"/>',
+  flame: '<path d="M12 21c-3.9 0-7-2.8-7-6.6 0-3.4 2.4-5.4 3.6-7.9.4 1.8 1.4 3 2.6 3.6C11 7 12.6 4.6 15 3c-.3 2.6.5 4.4 2 6.2 1.3 1.5 2 3.2 2 5.2 0 3.8-3.1 6.6-7 6.6z"/><path d="M12 21c-1.7 0-3-1.2-3-2.9 0-1.9 1.6-2.8 2.2-4.3.9 1.1 3.8 2.2 3.8 4.3 0 1.7-1.3 2.9-3 2.9z"/>',
+  coin: '<rect x="3" y="6" width="18" height="12" rx="3"/><path d="M8 9.5v5M16 9.5v5M10.5 12h3"/>',
+  gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
+  list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/>',
+  target: '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/>',
+  chart: '<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  book: '<path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 19V5M8 7h7"/>',
+  run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5.5 3 2.5V22M8 11l3-3 3 2 3 1M11 8l1.5 5.5"/>',
+  water: '<path d="M12 3s6 6.6 6 11a6 6 0 0 1-12 0c0-4.4 6-11 6-11z"/>',
+  moon: '<path d="M20 14.5A8 8 0 1 1 9.5 4 6.5 6.5 0 0 0 20 14.5z"/>',
+  leaf: '<path d="M5 19c0-8 5-14 15-14 0 10-6 15-14 15"/><path d="M5 19l7-7"/>',
+  brain: '<path d="M9 4a3 3 0 0 0-3 3 3 3 0 0 0-2 5 3 3 0 0 0 2 5 3 3 0 0 0 3 3h.5V4z"/><path d="M15 4a3 3 0 0 1 3 3 3 3 0 0 1 2 5 3 3 0 0 1-2 5 3 3 0 0 1-3 3h-.5V4z"/>',
+  dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
+  pen: '<path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/>',
+  phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M4 4l16 16"/>',
+  wallet: '<rect x="3" y="6" width="18" height="14" rx="3"/><path d="M3 10h18M16 15h2"/>',
+  snow: '<path d="M12 2v20M4 7l16 10M20 7L4 17"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>'
+};
+const GOOGLE_G = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="#4285F4" d="M23.5 12.3c0-.8-.1-1.6-.2-2.3H12v4.4h6.5a5.6 5.6 0 0 1-2.4 3.6v3h3.9c2.2-2.1 3.5-5.1 3.5-8.7z"/><path fill="#34A853" d="M12 24c3.2 0 6-1.1 8-2.9l-3.9-3c-1.1.7-2.5 1.2-4.1 1.2-3.1 0-5.8-2.1-6.7-5H1.3v3.1A12 12 0 0 0 12 24z"/><path fill="#FBBC05" d="M5.3 14.3a7.2 7.2 0 0 1 0-4.6V6.6H1.3a12 12 0 0 0 0 10.8z"/><path fill="#EA4335" d="M12 4.8c1.8 0 3.3.6 4.6 1.8l3.4-3.4A12 12 0 0 0 1.3 6.6l4 3.1c.9-2.9 3.6-4.9 6.7-4.9z"/></svg>';
+const HABIT_ICONS = ["book", "run", "water", "moon", "leaf", "brain", "dumbbell", "pen", "phone", "wallet"];
+function icon(name) {
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || ICONS.star) + "</svg>";
+}
+function paintIcons(root) {
+  root.querySelectorAll("svg[data-i]").forEach(function (el) { el.outerHTML = icon(el.getAttribute("data-i")); });
+}
 
-  /* ---------- Fechas ---------- */
-  const DAY = 86400000;
-  const WD = ["D", "L", "M", "X", "J", "V", "S"];
-  function key(d) {
-    const y = d.getFullYear(), m = String(d.getMonth() + 1).padStart(2, "0"), dd = String(d.getDate()).padStart(2, "0");
-    return y + "-" + m + "-" + dd;
-  }
-  function fromKey(k) { const p = k.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
-  function today() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
-  function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
-  function weekStart(d) { const r = new Date(d); const dow = (r.getDay() + 6) % 7; r.setDate(r.getDate() - dow); return r; }
+/* ---------- Fechas ---------- */
+const WD = ["D", "L", "M", "X", "J", "V", "S"];
+function key(d) {
+  return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+}
+function fromKey(k) { const p = k.split("-").map(Number); return new Date(p[0], p[1] - 1, p[2]); }
+function today() { const d = new Date(); d.setHours(0, 0, 0, 0); return d; }
+function addDays(d, n) { const r = new Date(d); r.setDate(r.getDate() + n); return r; }
+function weekStart(d) { const r = new Date(d); r.setDate(r.getDate() - (r.getDay() + 6) % 7); return r; }
+function monthStart(d) { return new Date(d.getFullYear(), d.getMonth(), 1); }
 
-  /* ---------- Estado ---------- */
-  const STORE = "racha-habitos-v1";
-  const DIFF = { 10: "Fácil", 20: "Media", 30: "Difícil" };
-  let state;
+/* ---------- Estado ---------- */
+const STORE = "racha-habitos-v1";
+const DIFF = { 10: "Fácil", 20: "Media", 30: "Difícil" };
+const SUGGESTIONS = [
+  { name: "Leer 20 minutos", icon: "book", freq: "days", days: [0, 1, 2, 3, 4, 5, 6], xp: 20 },
+  { name: "Beber 2 L de agua", icon: "water", freq: "days", days: [0, 1, 2, 3, 4, 5, 6], xp: 10 },
+  { name: "Entrenar", icon: "dumbbell", freq: "week", times: 3, xp: 30 },
+  { name: "Dormir antes de las 23:30", icon: "moon", freq: "days", days: [0, 1, 2, 3, 4], xp: 20 },
+  { name: "Revisar mis gastos", icon: "wallet", freq: "month", times: 4, xp: 20 }
+];
+let state;
 
-  function uid() { return Math.random().toString(36).slice(2, 9); }
+function uid() { return Math.random().toString(36).slice(2, 9); }
 
-  function exampleState() {
-    const habits = [
-      { id: uid(), name: "Leer 20 minutos", icon: "book", days: [0, 1, 2, 3, 4, 5, 6], xp: 20 },
-      { id: uid(), name: "Beber 2 L de agua", icon: "water", days: [0, 1, 2, 3, 4, 5, 6], xp: 10 },
-      { id: uid(), name: "Entrenar", icon: "dumbbell", days: [1, 3, 5], xp: 30 },
-      { id: uid(), name: "Dormir antes de las 23:30", icon: "moon", days: [0, 1, 2, 3, 4, 5, 6], xp: 20 },
-      { id: uid(), name: "Sin redes antes de las 10", icon: "phone", days: [1, 2, 3, 4, 5], xp: 20 }
-    ];
-    const log = {};
-    const t = today();
-    // Historial de ejemplo de las últimas 6 semanas, con una tasa de cumplimiento creciente.
-    let seed = 7;
-    function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
-    for (let i = 42; i >= 1; i--) {
-      const d = addDays(t, -i), k = key(d), p = 0.45 + (42 - i) / 42 * 0.45;
-      const done = habits.filter(function (h) { return h.days.includes(d.getDay()) && rnd() < p; }).map(function (h) { return h.id; });
-      if (done.length) log[k] = done;
-    }
-    // Garantiza una racha reciente visible.
-    for (let i = 1; i <= 9; i++) {
-      const k = key(addDays(t, -i));
-      if (!log[k] || !log[k].length) log[k] = [habits[1].id];
-    }
-    log[key(t)] = [habits[1].id];
-    return { v: 1, name: "", habits: habits, log: log, bonusXp: 60, coins: 45, freezes: 1, frozen: [], claimed: {}, example: true, memberKey: null, joined: false, savedAt: 0 };
+function exampleState() {
+  const habits = SUGGESTIONS.map(function (s) { return Object.assign({ id: uid() }, s, { days: s.days ? s.days.slice() : [] }); });
+  const log = {}, t = today();
+  let seed = 7;
+  function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
+  for (let i = 42; i >= 1; i--) {
+    const d = addDays(t, -i), p = 0.45 + (42 - i) / 42 * 0.45;
+    const done = habits.filter(function (h) {
+      if (h.freq === "days") return h.days.includes(d.getDay()) && rnd() < p;
+      return rnd() < (h.freq === "week" ? h.times / 7 : h.times / 30) * 1.1;
+    }).map(function (h) { return h.id; });
+    if (done.length) log[key(d)] = done;
   }
-  function emptyState(prev) {
-    prev = prev || {};
-    return { v: 1, name: prev.name || "", habits: [], log: {}, bonusXp: 0, coins: 0, freezes: 0, frozen: [], claimed: {}, example: false, memberKey: prev.memberKey || null, joined: !!prev.joined, savedAt: 0 };
-  }
-  function normalize(s) { return Object.assign(emptyState(), s); }
-  function load() {
-    try {
-      const raw = localStorage.getItem(STORE);
-      if (raw) { const s = JSON.parse(raw); if (s && s.v === 1 && Array.isArray(s.habits)) return normalize(s); }
-    } catch (e) { /* almacenamiento no disponible */ }
-    return exampleState();
-  }
-  function save() {
-    state.savedAt = Date.now();
-    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* sin persistencia */ }
-    scheduleSync();
-  }
+  for (let i = 1; i <= 9; i++) { const k = key(addDays(t, -i)); if (!log[k] || !log[k].length) log[k] = [habits[1].id]; }
+  log[key(t)] = [habits[1].id];
+  return { v: 1, name: "", habits: habits, log: log, bonusXp: 60, coins: 45, freezes: 1, frozen: [], claimed: {}, example: true, groupId: null, savedAt: 0 };
+}
+function emptyState(prev) {
+  prev = prev || {};
+  return { v: 1, name: prev.name || "", habits: [], log: {}, bonusXp: 0, coins: 0, freezes: 0, frozen: [], claimed: {}, example: false, groupId: prev.groupId || null, savedAt: 0 };
+}
+function normalize(s) {
+  const st = Object.assign(emptyState(), s);
+  st.habits = st.habits.map(function (h) {
+    const f = h.freq === "week" || h.freq === "month" ? h.freq : "days";
+    return Object.assign({}, h, { freq: f, days: Array.isArray(h.days) ? h.days : [0, 1, 2, 3, 4, 5, 6], times: h.times || 1 });
+  });
+  return st;
+}
+function storeKey() { return session.uid ? STORE + ":" + session.uid : STORE; }
+function readLocal() {
+  try {
+    const raw = localStorage.getItem(storeKey());
+    if (raw) { const s = JSON.parse(raw); if (s && s.v === 1 && Array.isArray(s.habits)) return normalize(s); }
+  } catch (e) { /* almacenamiento no disponible */ }
+  return null;
+}
+function writeLocal() { try { localStorage.setItem(storeKey(), JSON.stringify(state)); } catch (e) { /* sin persistencia */ } }
+function save() { state.savedAt = Date.now(); writeLocal(); scheduleSync(); }
 
-  /* ---------- Sincronización (solo dentro de Claude) ----------
-     Privado: data/users/<id>/app/state  (tus hábitos, en todos tus dispositivos)
-     Compartido: members/<clave>  (tu resumen para el grupo)
-                 goals/<id>       (objetivos comunes)                          */
-  const cloud = { db: null, uid: null, ready: false, members: [], goals: [], canWrite: true, error: "" };
-  let syncTimer = null, syncChain = Promise.resolve();
+/* ---------- Frecuencias ---------- */
+function habitById(id) { return state.habits.find(function (h) { return h.id === id; }); }
+function doneOn(k) { return state.log[k] || []; }
+function isDone(h, k) { return doneOn(k).includes(h.id); }
+function pStart(h, d) { return h.freq === "week" ? weekStart(d) : monthStart(d); }
+function countRange(h, from, to) {
+  let n = 0;
+  for (let d = new Date(from); d <= to; d = addDays(d, 1)) if (isDone(h, key(d))) n++;
+  return n;
+}
+// ¿Toca este hábito el día d? Semanales y mensuales tocan hasta cumplir la meta del periodo.
+function isDue(h, d) {
+  if (h.freq === "days") return h.days.includes(d.getDay());
+  if (isDone(h, key(d))) return true;
+  const start = pStart(h, d);
+  return d <= start ? true : countRange(h, start, addDays(d, -1)) < h.times;
+}
+function dueOn(d) { return state.habits.filter(function (h) { return isDue(h, d); }); }
+function periodCount(h) { const t = today(); return countRange(h, pStart(h, t), t); }
+function freqLabel(h) {
+  if (h.freq === "week") return h.times + "× semana";
+  if (h.freq === "month") return h.times + "× mes";
+  return h.days.length === 7 ? "Diario" : [1, 2, 3, 4, 5, 6, 0].filter(function (d) { return h.days.includes(d); }).map(function (d) { return WD[d]; }).join(" ");
+}
 
-  function memberDoc() {
-    const t = today(), tk = key(t), sched = scheduledOn(t);
-    let week = 0;
-    for (let d = weekStart(t); d <= t; d = addDays(d, 1)) week += doneOn(key(d)).length;
-    const goalDays = {};
-    state.habits.forEach(function (h) {
-      if (!h.goalId) return;
-      const days = [];
-      for (let i = 0; i < 14; i++) { const k = key(addDays(t, -i)); if (isDone(h, k)) days.push(k); }
-      goalDays[h.goalId] = days;
-    });
-    const xp = totalXp();
-    return {
-      nick: (state.name || "Sin nombre").slice(0, 40), level: levelInfo(xp).level, xp: xp,
-      streak: globalStreak(), week: week, weekKey: key(weekStart(t)),
-      todayKey: tk, todayDone: sched.filter(function (h) { return isDone(h, tk); }).length, todayTotal: sched.length,
-      goalDays: goalDays, updatedAt: Date.now()
+/* ---------- Cálculos ---------- */
+function totalXp() {
+  let xp = state.bonusXp || 0;
+  Object.keys(state.log).forEach(function (k) {
+    state.log[k].forEach(function (id) { const h = habitById(id); xp += h ? h.xp : 10; });
+  });
+  return xp;
+}
+// Nivel n requiere 50·n·(n-1) XP acumulada: 0, 100, 300, 600, 1000...
+function levelInfo(xp) {
+  let n = 1;
+  while (50 * (n + 1) * n <= xp) n++;
+  const base = 50 * n * (n - 1), next = 50 * (n + 1) * n;
+  return { level: n, into: xp - base, need: next - base };
+}
+function dayActive(k) { return doneOn(k).length > 0 || state.frozen.includes(k); }
+function globalStreak() {
+  let d = today();
+  if (!dayActive(key(d))) d = addDays(d, -1);
+  let n = 0;
+  while (dayActive(key(d)) && n < 3650) { n++; d = addDays(d, -1); }
+  return n;
+}
+// Racha de un hábito: días programados seguidos, o semanas/meses seguidos cumpliendo la meta.
+function habitStreak(h) {
+  let d = today(), n = 0, guard = 0;
+  if (h.freq !== "days") {
+    if (countRange(h, pStart(h, d), d) >= h.times) n++;
+    d = addDays(pStart(h, d), -1);
+    while (guard++ < 600 && countRange(h, pStart(h, d), d) >= h.times) { n++; d = addDays(pStart(h, d), -1); }
+    return n;
+  }
+  if (!isDone(h, key(d))) d = addDays(d, -1);
+  while (guard++ < 3650) {
+    const k = key(d);
+    if (h.days.includes(d.getDay())) { if (isDone(h, k) || state.frozen.includes(k)) n++; else break; }
+    d = addDays(d, -1);
+  }
+  return n;
+}
+function streakLabel(h, n) {
+  if (h.freq === "week") return "Racha " + n + " sem";
+  if (h.freq === "month") return "Racha " + n + (n === 1 ? " mes" : " meses");
+  return "Racha " + n;
+}
+function bestStreak() {
+  const keys = Object.keys(state.log).concat(state.frozen).sort();
+  if (!keys.length) return 0;
+  let best = 0, cur = 0;
+  for (let d = fromKey(keys[0]), end = today(); d <= end; d = addDays(d, 1)) {
+    if (dayActive(key(d))) { cur++; best = Math.max(best, cur); } else cur = 0;
+  }
+  return best;
+}
+function rate(h, days) {
+  const t = today();
+  if (h.freq !== "days") {
+    const expected = h.times * days / (h.freq === "week" ? 7 : 30);
+    return Math.min(1, countRange(h, addDays(t, -(days - 1)), t) / expected);
+  }
+  let sched = 0, done = 0;
+  for (let i = 0; i < days; i++) {
+    const d = addDays(t, -i);
+    if (h.days.includes(d.getDay())) { sched++; if (isDone(h, key(d))) done++; }
+  }
+  return sched ? done / sched : 0;
+}
+
+/* ---------- Retos ---------- */
+function quests() {
+  const t = today(), tk = key(t), wk = key(weekStart(t));
+  const due = dueOn(t), doneToday = due.filter(function (h) { return isDone(h, tk); }).length;
+  let weekCount = 0;
+  for (let d = weekStart(t); d <= t; d = addDays(d, 1)) weekCount += doneOn(key(d)).length;
+  const streak = globalStreak();
+  return [
+    { id: "d3", kind: "Diario", period: tk, title: "Completa 3 hábitos hoy", cur: doneToday, goal: 3, xp: 20, coins: 5 },
+    { id: "dall", kind: "Diario", period: tk, title: "Día perfecto: todos los de hoy", cur: doneToday, goal: Math.max(due.length, 1), xp: 40, coins: 10 },
+    { id: "w15", kind: "Semanal", period: wk, title: "15 hábitos esta semana", cur: weekCount, goal: 15, xp: 60, coins: 15 },
+    { id: "s7", kind: "Hito", period: "once", title: "Racha de 7 días", cur: streak, goal: 7, xp: 100, coins: 25 },
+    { id: "s30", kind: "Hito", period: "once", title: "Racha de 30 días", cur: streak, goal: 30, xp: 400, coins: 80 }
+  ];
+}
+function claimKey(q) { return q.id + "@" + q.period; }
+
+/* ---------- Nube: Firebase (login con Google + Firestore) ----------
+   users/{uid}/private/state        tus hábitos e historial (solo tú)
+   groups/{código}                  nombre del grupo y dueño
+   groups/{código}/members/{uid}    tu resumen para el grupo (lo escribes solo tú)
+   groups/{código}/goals/{id}       objetivos comunes                              */
+const FB_VERSION = "10.12.2";
+const session = { mode: firebaseConfig ? "cloud" : "local", phase: firebaseConfig ? "loading" : "ready", uid: null, user: null, error: "" };
+const cloud = { fb: null, group: null, members: [], goals: [], unsub: [], error: "", watching: null };
+let syncTimer = null, syncChain = Promise.resolve();
+
+async function initFirebase() {
+  const base = "https://www.gstatic.com/firebasejs/" + FB_VERSION + "/";
+  const mods = await Promise.all([import(base + "firebase-app.js"), import(base + "firebase-auth.js"), import(base + "firebase-firestore.js")]);
+  const app = mods[0].initializeApp(firebaseConfig);
+  const A = mods[1], F = mods[2];
+  const auth = A.getAuth(app), db = F.getFirestore(app);
+  if (firebaseConfig.useEmulator) {
+    A.connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
+    F.connectFirestoreEmulator(db, "127.0.0.1", 8080);
+    // Solo para pruebas locales con el emulador: inicia sesión sin la ventana de Google.
+    window.__rachaTestSignIn = function (email, name) {
+      return A.signInWithCredential(auth, A.GoogleAuthProvider.credential(JSON.stringify({ sub: email, email: email, name: name, email_verified: true })));
     };
   }
-  function scheduleSync() {
-    if (!cloud.db) return;
-    clearTimeout(syncTimer);
-    syncTimer = setTimeout(pushNow, 900);
+  cloud.fb = { A: A, F: F, auth: auth, db: db };
+  A.onAuthStateChanged(auth, function (user) {
+    if (user) onSignedIn(user);
+    else { session.uid = null; session.user = null; session.phase = "login"; stopGroup(); render(); }
+  });
+}
+function fdoc(path) { return cloud.fb.F.doc(cloud.fb.db, path); }
+function fcol(path) { return cloud.fb.F.collection(cloud.fb.db, path); }
+
+async function signIn() {
+  const A = cloud.fb.A, provider = new A.GoogleAuthProvider();
+  provider.setCustomParameters({ prompt: "select_account" });
+  session.error = ""; session.phase = "signing"; render();
+  try { await A.signInWithPopup(cloud.fb.auth, provider); }
+  catch (e) {
+    if (e && (e.code === "auth/popup-blocked" || e.code === "auth/operation-not-supported-in-this-environment")) {
+      try { await A.signInWithRedirect(cloud.fb.auth, provider); return; } catch (e2) { e = e2; }
+    }
+    session.phase = "login";
+    session.error = e && e.code === "auth/popup-closed-by-user" ? "" :
+      e && e.code === "auth/unauthorized-domain" ? "Este dominio no está autorizado en Firebase. Añádelo en Authentication → Settings → Authorized domains." :
+      "No se pudo iniciar sesión. Inténtalo otra vez.";
+    render();
   }
-  function pushNow() {
-    if (!cloud.db) return;
-    const snapshot = JSON.parse(JSON.stringify(state));
-    const mdoc = state.joined && state.memberKey ? memberDoc() : null;
-    syncChain = syncChain.then(function () {
-      const jobs = [];
-      if (cloud.uid) jobs.push(cloud.db.doc("data/users/" + cloud.uid + "/app/state").set({ json: JSON.stringify(snapshot) }).catch(function () {}));
-      if (mdoc && cloud.canWrite) jobs.push(cloud.db.doc("members/" + state.memberKey).set(mdoc).catch(onWriteError));
-      return Promise.all(jobs);
+}
+async function onSignedIn(user) {
+  session.uid = user.uid; session.user = user;
+  const local = readLocal();
+  state = local || emptyState({ name: user.displayName || "" });
+  if (!state.name) state.name = user.displayName || "";
+  session.phase = "ready"; render();
+  try {
+    const snap = await cloud.fb.F.getDoc(fdoc("users/" + user.uid + "/private/state"));
+    if (snap.exists()) {
+      const remote = normalize(JSON.parse(snap.data().json));
+      if (!local || remote.savedAt > state.savedAt) { state = remote; writeLocal(); }
+    } else if (local) pushNow();
+  } catch (e) { cloud.error = "Sin conexión. Tus cambios se guardan en este teléfono y se subirán después."; }
+  watchGroup(); render();
+}
+async function signOutNow() {
+  stopGroup();
+  await cloud.fb.A.signOut(cloud.fb.auth);
+}
+
+function memberDoc() {
+  const t = today(), tk = key(t), due = dueOn(t);
+  let week = 0;
+  for (let d = weekStart(t); d <= t; d = addDays(d, 1)) week += doneOn(key(d)).length;
+  const goalDays = {};
+  state.habits.forEach(function (h) {
+    if (!h.goalId) return;
+    const days = [];
+    for (let i = 0; i < 35; i++) { const k = key(addDays(t, -i)); if (isDone(h, k)) days.push(k); }
+    goalDays[h.goalId] = days;
+  });
+  const xp = totalXp(), photo = session.user && session.user.photoURL;
+  return {
+    nick: (state.name || "Sin nombre").slice(0, 40), photo: photo && /^https:\/\//.test(photo) ? photo : "",
+    level: levelInfo(xp).level, xp: xp, streak: globalStreak(), week: week, weekKey: key(weekStart(t)),
+    todayKey: tk, todayDone: due.filter(function (h) { return isDone(h, tk); }).length, todayTotal: due.length,
+    goalDays: goalDays, updatedAt: Date.now()
+  };
+}
+function scheduleSync() {
+  if (!cloud.fb || !session.uid) return;
+  clearTimeout(syncTimer);
+  syncTimer = setTimeout(pushNow, 800);
+}
+function pushNow() {
+  if (!cloud.fb || !session.uid) return;
+  const F = cloud.fb.F, u = session.uid, json = JSON.stringify(state);
+  const mdoc = state.groupId ? memberDoc() : null, gid = state.groupId;
+  syncChain = syncChain.then(function () {
+    const jobs = [F.setDoc(fdoc("users/" + u + "/private/state"), { json: json, savedAt: state.savedAt })];
+    if (mdoc) jobs.push(F.setDoc(fdoc("groups/" + gid + "/members/" + u), mdoc));
+    return Promise.all(jobs).then(function () { if (cloud.error) { cloud.error = ""; render(); } });
+  }).catch(function () { cloud.error = "No se pudo guardar en la nube. Se reintentará con tu próximo cambio."; render(); });
+}
+function stopGroup() {
+  cloud.unsub.forEach(function (f) { f(); });
+  cloud.unsub = []; cloud.group = null; cloud.members = []; cloud.goals = []; cloud.watching = null;
+}
+function watchGroup() {
+  if (!cloud.fb || !session.uid) return;
+  if (cloud.watching === state.groupId) return;
+  stopGroup();
+  const gid = state.groupId;
+  if (!gid) return;
+  cloud.watching = gid;
+  const F = cloud.fb.F;
+  const err = function () { cloud.error = "No se pudo leer el grupo."; render(); };
+  cloud.unsub.push(F.onSnapshot(fdoc("groups/" + gid), function (s) { cloud.group = s.exists() ? Object.assign({ id: s.id }, s.data()) : null; render(); }, err));
+  cloud.unsub.push(F.onSnapshot(fcol("groups/" + gid + "/members"), function (q) {
+    cloud.members = q.docs.map(function (d) { return Object.assign({ key: d.id }, d.data()); }); render();
+  }, err));
+  cloud.unsub.push(F.onSnapshot(fcol("groups/" + gid + "/goals"), function (q) {
+    cloud.goals = q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+      .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+    render();
+  }, err));
+}
+function newCode() {
+  const abc = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
+  let c = "";
+  const r = crypto.getRandomValues(new Uint32Array(8));
+  for (let i = 0; i < 8; i++) c += abc[r[i] % abc.length];
+  return c;
+}
+async function createGroup(name) {
+  const F = cloud.fb.F, code = newCode();
+  await F.setDoc(fdoc("groups/" + code), { name: name.slice(0, 40), ownerUid: session.uid, createdAt: Date.now() });
+  await enterGroup(code);
+}
+async function joinGroup(code) {
+  code = code.trim().toUpperCase().replace(/[^A-Z0-9]/g, "");
+  if (!code) throw new Error("vacío");
+  const snap = await cloud.fb.F.getDoc(fdoc("groups/" + code));
+  if (!snap.exists()) throw new Error("no-existe");
+  await enterGroup(code);
+}
+async function enterGroup(code) {
+  state.groupId = code; save();
+  await cloud.fb.F.setDoc(fdoc("groups/" + code + "/members/" + session.uid), memberDoc());
+  watchGroup();
+}
+async function leaveGroup() {
+  const gid = state.groupId;
+  state.groupId = null; save(); stopGroup(); render();
+  try { await cloud.fb.F.deleteDoc(fdoc("groups/" + gid + "/members/" + session.uid)); } catch (e) { /* ya no estaba */ }
+}
+function inviteLink(code) { return location.origin + location.pathname + "#unirse-" + code; }
+
+/* ---------- UI ---------- */
+const $ = function (s, r) { return (r || document).querySelector(s); };
+const view = $("#view");
+let route = "hoy", pendingCode = "", toastTimer, busy = false;
+
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.hidden = false;
+  t.style.animation = "none"; void t.offsetWidth; t.style.animation = "";
+  clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 1900);
+}
+function head(iconName, title, sub) {
+  return '<div class="page-head"><div class="badge">' + icon(iconName) + '</div><div><h1>' + title + '</h1><p class="sub">' + sub + '</p></div></div>';
+}
+function initials(name) {
+  const p = String(name || "").trim().split(/\s+/).filter(Boolean);
+  if (!p.length) return "TU";
+  return (p.length > 1 ? p[0][0] + p[1][0] : p[0].slice(0, 2)).toUpperCase();
+}
+function renderStatus() {
+  const xp = totalXp(), lv = levelInfo(xp);
+  $("#initials").textContent = initials(state.name);
+  $("#lv").textContent = "LV " + lv.level;
+  $("#xpTotal").textContent = xp;
+  $("#streakTop").textContent = globalStreak();
+  $("#coinsTop").textContent = state.coins;
+}
+
+function habitRow(h, k, mode) {
+  const done = isDone(h, k), st = habitStreak(h);
+  const prog = h.freq === "days" ? "" : '<span>' + periodCount(h) + '/' + h.times + (h.freq === "week" ? " esta sem" : " este mes") + '</span>';
+  const action = mode === "manage"
+    ? '<button class="edit" data-edit="' + h.id + '">Editar</button>'
+    : '<button class="check" data-toggle="' + h.id + '" aria-pressed="' + done + '" aria-label="' + (done ? "Desmarcar " : "Marcar ") + esc(h.name) + '">' + icon("check") + '</button>';
+  return '<div class="habit' + (done && mode !== "manage" ? " done" : "") + '"><div class="hi">' + icon(h.icon) + '</div>' +
+    '<div class="meta"><div class="name">' + esc(h.name) + '</div><div class="tags"><span>+' + h.xp + ' XP</span><span class="fl">' + streakLabel(h, st) + '</span><span>' + freqLabel(h) + '</span>' + prog +
+    (h.goalId ? '<span style="color:var(--accent)">Común</span>' : "") + '</div></div>' + action + '</div>';
+}
+function exampleBanner() {
+  if (!state.example) return "";
+  return '<div class="banner"><span><b>Datos de ejemplo.</b> Así se ve con semanas de uso. Bórralos cuando quieras empezar.</span><button class="btn ghost" data-act="fresh">Empezar de cero</button></div>';
+}
+function suggestionChips() {
+  return '<div class="chips">' + SUGGESTIONS.map(function (s, i) { return '<button class="choice" data-suggest="' + i + '">' + icon(s.icon) + esc(s.name) + '</button>'; }).join("") + '</div>';
+}
+
+const pages = {
+  hoy: function () {
+    const t = today(), k = key(t);
+    const due = dueOn(t);
+    const done = due.filter(function (h) { return isDone(h, k); }).length;
+    const pct = due.length ? done / due.length : 0;
+    const lv = levelInfo(totalXp());
+    const C = 2 * Math.PI * 46;
+    const others = state.habits.filter(function (h) { return !isDue(h, t); });
+    const dateTxt = t.toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" });
+    let msg = "Empieza por el más fácil.";
+    if (!state.habits.length) msg = "Crea tu primer hábito.";
+    else if (!due.length) msg = "Hoy no te toca nada. Descansa.";
+    else if (done === due.length) msg = "Día perfecto. Reclama tu reto.";
+    else if (done > 0) msg = "Te faltan " + (due.length - done) + ". Sigue.";
+    return head("check", "Hoy", dateTxt) +
+      '<section class="card today" aria-label="Resumen de hoy">' +
+        '<div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46" fill="none" stroke-width="8"/>' +
+        '<circle class="bar" cx="50" cy="50" r="46" fill="none" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '"/></svg>' +
+        '<div class="label"><div>' + done + '/' + due.length + '<small>HECHOS</small></div></div></div>' +
+        '<div class="today-copy"><div class="big">' + msg + '</div>' +
+        '<div class="xpbar" aria-label="Progreso de nivel"><i style="width:' + (lv.into / lv.need * 100) + '%"></i></div>' +
+        '<div class="xpmeta"><span>Nivel ' + lv.level + '</span><span>' + lv.into + ' / ' + lv.need + ' XP</span></div></div>' +
+      '</section>' + exampleBanner() + (cloud.error ? '<div class="banner"><span>' + esc(cloud.error) + '</span></div>' : "") +
+      '<h2>Para hoy<span class="count">' + done + ' de ' + due.length + '</span></h2>' +
+      (due.length ? '<div class="list">' + due.map(function (h) { return habitRow(h, k); }).join("") + '</div>'
+        : state.habits.length ? '<div class="card empty"><strong>Nada pendiente</strong>Tus hábitos de hoy ya están cumplidos o no tocan.</div>'
+        : '<div class="card empty"><strong>Empieza con uno</strong>Toca una sugerencia o crea el tuyo.' + suggestionChips() + '<br><button class="btn primary" data-act="new">' + icon("plus") + 'Nuevo hábito</button></div>') +
+      (others.length ? '<h2>No tocan hoy<span class="count">' + others.length + '</span></h2><div class="list">' + others.map(function (h) { return habitRow(h, k, "manage"); }).join("") + '</div>' : "");
+  },
+
+  habitos: function () {
+    const groups = [["days", "Por días"], ["week", "Semanales"], ["month", "Mensuales"]];
+    let html = head("list", "Hábitos", "Lo que quieres repetir") +
+      '<button class="btn primary block" data-act="new">' + icon("plus") + 'Nuevo hábito</button>';
+    if (!state.habits.length) return html + '<h2>Tus hábitos</h2><div class="card empty"><strong>Sin hábitos todavía</strong>Uno pequeño y concreto funciona mejor que cinco ambiciosos.' + suggestionChips() + '</div>';
+    groups.forEach(function (g) {
+      const hs = state.habits.filter(function (h) { return h.freq === g[0]; });
+      if (hs.length) html += '<h2>' + g[1] + '<span class="count">' + hs.length + '</span></h2><div class="list">' + hs.map(function (h) { return habitRow(h, key(today()), "manage"); }).join("") + '</div>';
     });
-  }
-  function onWriteError(e) {
-    if (e && e.code === "invalid_argument") { cloud.canWrite = false; cloud.error = "Tu acceso a esta app es de solo lectura. Pide al dueño que te invite como editor."; }
-    else if (e && e.code === "quota_exceeded") cloud.error = "El grupo llegó al límite de espacio.";
-    else cloud.error = "No se pudo guardar en el grupo. Se reintentará con tu próximo cambio.";
-    if (route === "grupo") render();
-  }
-  async function connect() {
-    if (!window.claude || typeof window.claude.use !== "function") { cloud.ready = true; return; }
-    try {
-      const results = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
-      const db = results[0], user = results[1];
-      if (!db) { cloud.ready = true; if (route === "grupo") render(); return; }
-      cloud.db = db;
-      cloud.uid = user ? await user.id() : null;
-      if (user) { const w = await user.can("data.write"); if (w === false) cloud.canWrite = false; }
-      if (cloud.uid) {
-        const snap = await db.doc("data/users/" + cloud.uid + "/app/state").get().catch(function () { return null; });
-        if (snap && snap.exists) {
-          try {
-            const remote = normalize(JSON.parse(snap.data().json));
-            // Si este dispositivo solo tiene el ejemplo, o la nube es más reciente, usamos la nube.
-            if (state.example || remote.savedAt > state.savedAt) { state = remote; try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
-          } catch (e) { /* copia dañada: nos quedamos con la local */ }
+    return html + '<p class="hint">Define cada hábito como una acción que puedas marcar sin dudar. "Leer 20 minutos" sí; "leer más" no.</p>';
+  },
+
+  retos: function () {
+    const qs = quests();
+    function block(kind) {
+      return qs.filter(function (q) { return q.kind === kind; }).map(function (q) {
+        const claimed = !!state.claimed[claimKey(q)], ok = q.cur >= q.goal, p = Math.min(q.cur / q.goal, 1);
+        return '<div class="quest' + (claimed ? " claimed" : "") + '"><div><div class="qk">' + q.kind + '</div><div class="qt">' + esc(q.title) + '</div></div>' +
+          (claimed ? '<span class="qk">Cobrado</span>' : '<button class="btn ' + (ok ? "primary" : "ghost") + '" data-claim="' + q.id + '"' + (ok ? "" : " disabled") + '>Cobrar</button>') +
+          '<div class="qbar"><i style="width:' + p * 100 + '%"></i></div>' +
+          '<div class="qr"><span>' + Math.min(q.cur, q.goal) + ' / ' + q.goal + '</span><span>+' + q.xp + ' XP · +' + q.coins + ' monedas</span></div></div>';
+      }).join("");
+    }
+    return head("target", "Retos", "Recompensas por constancia") +
+      '<h2>Diarios</h2><div class="card">' + block("Diario") + '</div>' +
+      '<h2>Semanal</h2><div class="card">' + block("Semanal") + '</div>' +
+      '<h2>Hitos</h2><div class="card">' + block("Hito") + '</div>' +
+      '<h2>Tienda</h2><div class="card"><div class="quest"><div><div class="qk">Comodín de racha · tienes ' + state.freezes + '</div><div class="qt">Protege un día que fallaste</div></div>' +
+      '<button class="btn ' + (state.coins >= 30 ? "primary" : "ghost") + '" data-act="buyfreeze"' + (state.coins >= 30 ? "" : " disabled") + '>30 ' + icon("coin") + '</button></div>' +
+      '<p class="hint">Se usa desde Progreso, solo para ayer y solo si ayer no marcaste nada.</p></div>';
+  },
+
+  grupo: function () {
+    const top = head("users", "Grupo", "Objetivos con tus amigos");
+    if (session.mode === "local") return top + '<div class="card empty"><strong>Falta conectar la nube</strong>El grupo necesita el inicio de sesión con Google. Sigue la guía de configuración (README) para activarlo.</div>';
+    if (state.example) return top + '<div class="card empty"><strong>Primero, tus datos reales</strong>Ahora ves datos de ejemplo. Bórralos para que el grupo vea tu progreso de verdad.<br><br><button class="btn primary" data-act="fresh">Empezar de cero</button></div>';
+    let html = top;
+    if (cloud.error) html += '<div class="banner"><span>' + esc(cloud.error) + '</span></div>';
+    if (!state.groupId) {
+      return html +
+        '<h2>Unirme a un grupo</h2><div class="card"><div class="field"><label for="codeIn">Código de invitación</label><input class="input" id="codeIn" maxlength="12" autocapitalize="characters" autocomplete="off" placeholder="Ej.: K7MQ2XRP" value="' + esc(pendingCode) + '"></div>' +
+        '<button class="btn primary" data-act="joincode"' + (busy ? " disabled" : "") + '>Unirme</button></div>' +
+        '<h2>Crear un grupo</h2><div class="card"><div class="field"><label for="gNameIn">Nombre del grupo</label><input class="input" id="gNameIn" maxlength="40" placeholder="Ej.: Los constantes"></div>' +
+        '<button class="btn" data-act="creategroup"' + (busy ? " disabled" : "") + '>' + icon("plus") + 'Crear y obtener código</button>' +
+        '<p class="hint">El grupo ve tu nombre, foto, nivel, racha, cuántos hábitos hiciste esta semana y los objetivos comunes. Tus otros hábitos no se comparten.</p></div>';
+    }
+    const t = today(), tk = key(t), wk = key(weekStart(t)), me = session.uid;
+    const members = cloud.members.slice().sort(function (a, b) {
+      return ((b.weekKey === wk ? b.week : 0) - (a.weekKey === wk ? a.week : 0)) || ((b.streak || 0) - (a.streak || 0));
+    });
+    html += '<div class="card"><div class="mode">' + esc(cloud.group ? cloud.group.name : "Tu grupo") + ' · código de invitación</div><div class="code">' + esc(state.groupId) + '</div>' +
+      '<div class="btn-row" style="margin-top:12px"><button class="btn" data-act="copylink">' + icon("link") + 'Copiar enlace</button>' +
+      (navigator.share ? '<button class="btn ghost" data-act="sharelink">Compartir</button>' : "") + '</div>' +
+      '<p class="hint">Tus amigos abren el enlace, entran con Google y quedan dentro.</p></div>';
+
+    html += '<h2>Esta semana<span class="count">' + members.length + '</span></h2><div class="card">';
+    if (!members.length) html += '<div class="empty">Cargando miembros…</div>';
+    members.forEach(function (m, i) {
+      const wkCount = m.weekKey === wk ? (m.week || 0) : 0;
+      const todayTxt = m.todayKey === tk ? "Hoy " + (m.todayDone || 0) + "/" + (m.todayTotal || 0) : "Hoy sin registrar";
+      const pic = m.photo && /^https:\/\//.test(m.photo) ? '<img src="' + esc(m.photo) + '" alt="" referrerpolicy="no-referrer">' : (i + 1);
+      html += '<div class="member' + (m.key === me ? " me" : "") + '"><div class="pos">' + pic + '</div>' +
+        '<div style="min-width:0"><div class="mn">' + (m.photo ? (i + 1) + '. ' : "") + esc(m.nick || "Sin nombre") + (m.key === me ? " (tú)" : "") + '</div>' +
+        '<div class="ms">LV ' + (m.level || 1) + ' · <span class="fl">Racha ' + (m.streak || 0) + '</span> · ' + todayTxt + '</div></div>' +
+        '<div class="mw">' + wkCount + '<small>HÁBITOS</small></div></div>';
+    });
+    html += '</div>';
+
+    html += '<h2>Objetivos comunes<span class="count">' + cloud.goals.length + '</span></h2>' +
+      '<button class="btn primary block" data-act="newgoal">' + icon("plus") + 'Nuevo objetivo común</button><div style="height:12px"></div>';
+    if (!cloud.goals.length) html += '<div class="card empty"><strong>Sin objetivos todavía</strong>Propón uno que todos puedan cumplir, por ejemplo "Caminar 30 minutos" tres veces por semana.</div>';
+    else {
+      html += '<div class="card">';
+      const days7 = []; for (let i = 6; i >= 0; i--) days7.push(addDays(t, -i));
+      cloud.goals.forEach(function (g) {
+        const gh = normalize({ habits: [g] }).habits[0];
+        const mine = state.habits.some(function (h) { return h.goalId === g.id; });
+        const part = members.filter(function (m) { return m.goalDays && Array.isArray(m.goalDays[g.id]); });
+        let done = 0, target = 0;
+        const from = gh.freq === "month" ? monthStart(t) : weekStart(t);
+        part.forEach(function (m) {
+          const set = m.goalDays[g.id];
+          let c = 0, s = 0;
+          for (let d = new Date(from); d <= t; d = addDays(d, 1)) { if (set.includes(key(d))) c++; if (gh.freq === "days" && gh.days.includes(d.getDay())) s++; }
+          done += gh.freq === "days" ? c : Math.min(c, gh.times);
+          target += gh.freq === "days" ? s : gh.times;
+        });
+        html += '<div class="goal"><div class="goal-top"><div class="hi">' + icon(gh.icon) + '</div><div style="min-width:0"><div class="gt">' + esc(gh.name || g.title || "Objetivo") + '</div>' +
+          '<div class="hint" style="margin:0">' + freqLabel(gh) + ' · ' + part.length + ' participando</div></div>' +
+          (mine ? '<span class="qk" style="color:var(--accent);font-size:11px;font-weight:900;letter-spacing:.1em">DENTRO</span>'
+            : '<button class="btn primary" data-joingoal="' + esc(g.id) + '">Unirme</button>') + '</div>';
+        if (part.length) {
+          html += '<div class="xpbar"><i style="width:' + (target ? Math.min(done / target, 1) * 100 : 0) + '%"></i></div><div class="xpmeta"><span>Entre todos ' + (gh.freq === "month" ? "este mes" : "esta semana") + '</span><span>' + done + ' / ' + target + '</span></div>';
+          html += '<div class="dots"><div class="dr hd"><span></span>' + days7.map(function (d) { return '<i>' + WD[d.getDay()] + '</i>'; }).join("") + '</div>' +
+            part.map(function (m) {
+              return '<div class="dr' + (m.key === me ? " me" : "") + '"><span>' + esc(m.nick || "Sin nombre") + '</span>' + days7.map(function (d) {
+                const k = key(d), off = gh.freq === "days" && !gh.days.includes(d.getDay());
+                return '<i class="' + (m.goalDays[g.id].includes(k) ? "on" : off ? "off" : "") + '" title="' + k + '"></i>';
+              }).join("") + '</div>';
+            }).join("") + '</div>';
         }
-      }
-      if (!state.memberKey) { state.memberKey = cloud.uid || ("m" + uid() + uid()); save(); }
-      db.collection("members").onSnapshot(function (q) {
-        cloud.members = q.docs.map(function (d) { return Object.assign({ key: d.id }, d.data()); });
-        if (route === "grupo") render(); else renderStatus();
-      }, function () {});
-      db.collection("goals").onSnapshot(function (q) {
-        cloud.goals = q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
-          .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
-        if (route === "grupo") render();
-      }, function () {});
-      cloud.ready = true;
-      render();
-      if (state.joined) scheduleSync();
-    } catch (e) { cloud.ready = true; if (route === "grupo") render(); }
-  }
-
-  /* ---------- Cálculos ---------- */
-  function scheduledOn(d) { return state.habits.filter(function (h) { return h.days.includes(d.getDay()); }); }
-  function doneOn(k) { return state.log[k] || []; }
-  function isDone(h, k) { return doneOn(k).includes(h.id); }
-  function habitById(id) { return state.habits.find(function (h) { return h.id === id; }); }
-
-  function totalXp() {
-    let xp = state.bonusXp || 0;
-    Object.keys(state.log).forEach(function (k) {
-      state.log[k].forEach(function (id) { const h = habitById(id); xp += h ? h.xp : 10; });
-    });
-    return xp;
-  }
-  // Nivel n requiere 50·n·(n-1) XP acumulada: 0, 100, 300, 600, 1000...
-  function levelInfo(xp) {
-    let n = 1;
-    while (50 * (n + 1) * n <= xp) n++;
-    const base = 50 * n * (n - 1), next = 50 * (n + 1) * n;
-    return { level: n, into: xp - base, need: next - base };
-  }
-  function dayActive(k) { return doneOn(k).length > 0 || state.frozen.includes(k); }
-  // Racha global: días seguidos con al menos un hábito (o comodín). Hoy cuenta solo si ya hay algo marcado.
-  function globalStreak() {
-    let d = today();
-    if (!dayActive(key(d))) d = addDays(d, -1);
-    let n = 0;
-    while (dayActive(key(d))) { n++; d = addDays(d, -1); if (n > 3650) break; }
-    return n;
-  }
-  // Racha de un hábito: días programados seguidos cumplidos.
-  function habitStreak(h) {
-    let d = today(), n = 0, guard = 0;
-    if (!isDone(h, key(d))) d = addDays(d, -1);
-    while (guard++ < 3650) {
-      const k = key(d);
-      if (h.days.includes(d.getDay())) {
-        if (isDone(h, k) || state.frozen.includes(k)) n++;
-        else break;
-      }
-      d = addDays(d, -1);
-    }
-    return n;
-  }
-  function bestStreak() {
-    const keys = Object.keys(state.log).concat(state.frozen).sort();
-    if (!keys.length) return 0;
-    let best = 0, cur = 0, d = fromKey(keys[0]);
-    const end = today();
-    while (d <= end) {
-      if (dayActive(key(d))) { cur++; best = Math.max(best, cur); } else cur = 0;
-      d = addDays(d, 1);
-    }
-    return best;
-  }
-  function rate(h, days) {
-    let sched = 0, done = 0;
-    for (let i = 0; i < days; i++) {
-      const d = addDays(today(), -i);
-      if (h.days.includes(d.getDay())) { sched++; if (isDone(h, key(d))) done++; }
-    }
-    return sched ? done / sched : 0;
-  }
-
-  /* ---------- Retos ---------- */
-  function quests() {
-    const t = today(), tk = key(t), wk = key(weekStart(t));
-    const sched = scheduledOn(t), doneToday = sched.filter(function (h) { return isDone(h, tk); }).length;
-    let weekCount = 0;
-    for (let d = weekStart(t); d <= t; d = addDays(d, 1)) weekCount += doneOn(key(d)).length;
-    const streak = globalStreak();
-    return [
-      { id: "d3", kind: "Diario", period: tk, title: "Completa 3 hábitos hoy", cur: doneToday, goal: 3, xp: 20, coins: 5 },
-      { id: "dall", kind: "Diario", period: tk, title: "Día perfecto: todos los de hoy", cur: doneToday, goal: Math.max(sched.length, 1), xp: 40, coins: 10 },
-      { id: "w15", kind: "Semanal", period: wk, title: "15 hábitos esta semana", cur: weekCount, goal: 15, xp: 60, coins: 15 },
-      { id: "s7", kind: "Hito", period: "once", title: "Racha de 7 días", cur: streak, goal: 7, xp: 100, coins: 25 },
-      { id: "s30", kind: "Hito", period: "once", title: "Racha de 30 días", cur: streak, goal: 30, xp: 400, coins: 80 }
-    ];
-  }
-  function claimKey(q) { return q.id + "@" + q.period; }
-
-  /* ---------- UI ---------- */
-  const $ = function (s, r) { return (r || document).querySelector(s); };
-  const view = $("#view");
-  let route = "hoy";
-  let toastTimer;
-
-  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); }
-  function toast(msg) {
-    const t = $("#toast");
-    t.textContent = msg; t.hidden = false;
-    t.style.animation = "none"; void t.offsetWidth; t.style.animation = "";
-    clearTimeout(toastTimer); toastTimer = setTimeout(function () { t.hidden = true; }, 1800);
-  }
-  function head(iconName, title, sub) {
-    return '<div class="page-head"><div class="badge">' + icon(iconName) + '</div><div><h1>' + title + '</h1><p class="sub">' + sub + '</p></div></div>';
-  }
-  function initials(name) {
-    const p = String(name || "").trim().split(/\s+/).filter(Boolean);
-    if (!p.length) return "TU";
-    return (p.length > 1 ? p[0][0] + p[1][0] : p[0].slice(0, 2)).toUpperCase();
-  }
-
-  function renderStatus() {
-    const xp = totalXp(), lv = levelInfo(xp);
-    $("#initials").textContent = initials(state.name);
-    $("#lv").textContent = "LV " + lv.level;
-    $("#xpTotal").textContent = xp;
-    $("#streakTop").textContent = globalStreak();
-    $("#coinsTop").textContent = state.coins;
-  }
-
-  function habitRow(h, k, mode) {
-    const done = isDone(h, k), st = habitStreak(h);
-    const days = h.days.length === 7 ? "Diario" : h.days.map(function (d) { return WD[d]; }).join(" ");
-    const action = mode === "manage"
-      ? '<button class="edit" data-edit="' + h.id + '">Editar</button>'
-      : '<button class="check" data-toggle="' + h.id + '" aria-pressed="' + done + '" aria-label="' + (done ? "Desmarcar " : "Marcar ") + esc(h.name) + '">' + icon("check") + '</button>';
-    return '<div class="habit' + (done && mode !== "manage" ? " done" : "") + '"><div class="hi">' + icon(h.icon) + '</div>' +
-      '<div class="meta"><div class="name">' + esc(h.name) + '</div><div class="tags"><span>+' + h.xp + ' XP</span><span class="fl">Racha ' + st + '</span><span>' + days + '</span>' + (h.goalId ? '<span style="color:var(--accent)">Común</span>' : "") + '</div></div>' +
-      action + '</div>';
-  }
-
-  function exampleBanner() {
-    if (!state.example) return "";
-    return '<div class="banner"><span><b>Datos de ejemplo.</b> Así se ve con semanas de uso. Bórralos cuando quieras empezar.</span><button class="btn ghost" data-act="fresh">Empezar de cero</button></div>';
-  }
-
-  const pages = {
-    hoy: function () {
-      const t = today(), k = key(t);
-      const sched = scheduledOn(t);
-      const done = sched.filter(function (h) { return isDone(h, k); }).length;
-      const pct = sched.length ? done / sched.length : 0;
-      const xp = totalXp(), lv = levelInfo(xp);
-      const C = 2 * Math.PI * 46;
-      const others = state.habits.filter(function (h) { return !h.days.includes(t.getDay()); });
-      const dateTxt = t.toLocaleDateString("es", { weekday: "long", day: "numeric", month: "long" });
-      let msg = "Empieza por el más fácil.";
-      if (!sched.length) msg = "Hoy no tienes hábitos programados.";
-      else if (done === sched.length) msg = "Día perfecto. Reclama tu reto.";
-      else if (done > 0) msg = "Te faltan " + (sched.length - done) + ". Sigue.";
-      return head("check", "Hoy", dateTxt) +
-        '<section class="card today" aria-label="Resumen de hoy">' +
-          '<div class="ring"><svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46" fill="none" stroke-width="8"/>' +
-          '<circle class="bar" cx="50" cy="50" r="46" fill="none" stroke-width="8" stroke-linecap="round" stroke-dasharray="' + C + '" stroke-dashoffset="' + (C * (1 - pct)) + '"/></svg>' +
-          '<div class="label"><div>' + done + '/' + sched.length + '<small>HECHOS</small></div></div></div>' +
-          '<div class="today-copy"><div class="big">' + msg + '</div>' +
-          '<div class="xpbar" aria-label="Progreso de nivel"><i style="width:' + (lv.into / lv.need * 100) + '%"></i></div>' +
-          '<div class="xpmeta"><span>Nivel ' + lv.level + '</span><span>' + lv.into + ' / ' + lv.need + ' XP</span></div></div>' +
-        '</section>' + exampleBanner() +
-        '<h2>Para hoy<span class="count">' + done + ' de ' + sched.length + '</span></h2>' +
-        (sched.length ? '<div class="list">' + sched.map(function (h) { return habitRow(h, k); }).join("") + '</div>'
-          : '<div class="card empty"><strong>Nada programado</strong>Crea tu primer hábito y elige qué días toca.<br><br><button class="btn primary" data-act="new">' + icon("plus") + 'Nuevo hábito</button></div>') +
-        (others.length ? '<h2>Descansan hoy<span class="count">' + others.length + '</span></h2><div class="list">' + others.map(function (h) { return habitRow(h, k, "manage"); }).join("") + '</div>' : "");
-    },
-
-    habitos: function () {
-      return head("list", "Hábitos", "Lo que quieres repetir") +
-        '<button class="btn primary block" data-act="new">' + icon("plus") + 'Nuevo hábito</button>' +
-        '<h2>Tus hábitos<span class="count">' + state.habits.length + '</span></h2>' +
-        (state.habits.length ? '<div class="list">' + state.habits.map(function (h) { return habitRow(h, key(today()), "manage"); }).join("") + '</div>'
-          : '<div class="card empty"><strong>Sin hábitos todavía</strong>Uno pequeño y concreto funciona mejor que cinco ambiciosos.</div>') +
-        '<p class="hint">Consejo: define el hábito como una acción que puedas marcar sin dudar. "Leer 20 minutos" sí; "leer más" no.</p>';
-    },
-
-    retos: function () {
-      const qs = quests();
-      function block(kind) {
-        return qs.filter(function (q) { return q.kind === kind; }).map(function (q) {
-          const claimed = !!state.claimed[claimKey(q)], ok = q.cur >= q.goal, p = Math.min(q.cur / q.goal, 1);
-          return '<div class="quest' + (claimed ? " claimed" : "") + '"><div><div class="qk">' + q.kind + '</div><div class="qt">' + esc(q.title) + '</div></div>' +
-            (claimed ? '<span class="qk">Cobrado</span>' : '<button class="btn ' + (ok ? "primary" : "ghost") + '" data-claim="' + q.id + '"' + (ok ? "" : " disabled") + '>Cobrar</button>') +
-            '<div class="qbar"><i style="width:' + p * 100 + '%"></i></div>' +
-            '<div class="qr"><span>' + Math.min(q.cur, q.goal) + ' / ' + q.goal + '</span><span>+' + q.xp + ' XP · +' + q.coins + ' monedas</span></div></div>';
-        }).join("");
-      }
-      return head("target", "Retos", "Recompensas por constancia") +
-        '<h2>Diarios</h2><div class="card">' + block("Diario") + '</div>' +
-        '<h2>Semanal</h2><div class="card">' + block("Semanal") + '</div>' +
-        '<h2>Hitos</h2><div class="card">' + block("Hito") + '</div>' +
-        '<h2>Tienda</h2><div class="card"><div class="quest"><div><div class="qk">Comodín de racha · tienes ' + state.freezes + '</div><div class="qt">Protege un día que fallaste</div></div>' +
-        '<button class="btn ' + (state.coins >= 30 ? "primary" : "ghost") + '" data-act="buyfreeze"' + (state.coins >= 30 ? "" : " disabled") + '>30 ' + icon("coin") + '</button></div>' +
-        '<p class="hint">Se usa desde Progreso, solo para ayer y solo si ayer no marcaste nada.</p></div>';
-    },
-
-    progreso: function () {
-      const t = today(), weeks = 15;
-      const start = addDays(weekStart(t), -7 * (weeks - 1));
-      let cells = "";
-      for (let i = 0; i < weeks * 7; i++) {
-        const d = addDays(start, i), k = key(d);
-        if (d > t) { cells += '<i class="future"></i>'; continue; }
-        if (state.frozen.includes(k)) { cells += '<i class="fz" title="' + k + ' · comodín"></i>'; continue; }
-        const s = scheduledOn(d).length, n = doneOn(k).length;
-        const r = s ? n / s : (n ? 1 : 0);
-        const l = n === 0 ? 0 : r < .34 ? 1 : r < .67 ? 2 : r < 1 ? 3 : 4;
-        cells += '<i data-l="' + l + '" title="' + k + ' · ' + n + '/' + s + '"></i>';
-      }
-      const y = addDays(t, -1), yk = key(y);
-      const canFreeze = state.freezes > 0 && !dayActive(yk) && dayActive(key(addDays(t, -2)));
-      const totalDone = Object.keys(state.log).reduce(function (a, k) { return a + state.log[k].length; }, 0);
-      return head("chart", "Progreso", "Últimas 15 semanas") +
-        '<div class="kpis"><div class="kpi"><b>' + globalStreak() + '</b><span>Racha</span></div><div class="kpi"><b>' + bestStreak() + '</b><span>Mejor racha</span></div><div class="kpi"><b>' + totalDone + '</b><span>Registros</span></div></div>' +
-        '<h2>Mapa de constancia</h2><div class="card"><div class="heat-wrap"><div class="heat" role="img" aria-label="Mapa de días completados">' + cells + '</div></div>' +
-        '<div class="legend">Menos <i style="background:var(--surface-2)"></i><i style="background:#4a3c08"></i><i style="background:#8a6f0c"></i><i style="background:#c9a10c"></i><i style="background:var(--accent)"></i> Más · <i style="background:#1b3a52"></i> Comodín</div>' +
-        (canFreeze ? '<p class="hint">Ayer no marcaste nada y tu racha está en riesgo.</p><button class="btn primary" style="margin-top:10px" data-act="usefreeze">' + icon("snow") + 'Usar comodín en ayer</button>' : "") +
-        '</div>' +
-        '<h2>Cumplimiento · 30 días</h2><div class="card">' +
-        (state.habits.length ? '<div class="rows">' + state.habits.map(function (h) {
-          const r = rate(h, 30);
-          return '<div class="row"><span class="rn">' + esc(h.name) + '</span><span class="rv">' + Math.round(r * 100) + '% · racha ' + habitStreak(h) + '</span><div class="rb"><i style="width:' + r * 100 + '%"></i></div></div>';
-        }).join("") + '</div>' : '<div class="empty">Aún no hay datos.</div>') + '</div>';
-    },
-
-    grupo: function () {
-      const top = head("users", "Grupo", "Objetivos con tus amigos");
-      if (!cloud.ready) return top + '<div class="card empty"><strong>Conectando</strong>Buscando a tu grupo…</div>';
-      if (!cloud.db) return top + '<div class="card empty"><strong>Grupo no disponible aquí</strong>El grupo funciona cuando abres la app desde su enlace de Claude con tu cuenta iniciada. Tus hábitos personales siguen funcionando igual.</div>';
-      const t = today(), tk = key(t), wk = key(weekStart(t)), me = state.memberKey;
-      const members = cloud.members.slice().sort(function (a, b) {
-        return ((b.weekKey === wk ? b.week : 0) - (a.weekKey === wk ? a.week : 0)) || ((b.streak || 0) - (a.streak || 0));
-      });
-      let html = top;
-      if (cloud.error) html += '<div class="banner"><span>' + esc(cloud.error) + '</span></div>';
-      if (!state.joined && state.example) {
-        html += '<div class="card empty"><strong>Primero, tus datos reales</strong>Ahora ves datos de ejemplo. Bórralos para que el grupo vea tu progreso de verdad.<br><br><button class="btn primary" data-act="fresh">Empezar de cero</button></div>';
-      } else if (!state.joined) {
-        html += '<div class="card"><div class="field"><label for="nickIn">Tu nombre en el grupo</label><input class="input" id="nickIn" maxlength="40" placeholder="Cómo te verán tus amigos" value="' + esc(state.name) + '"></div>' +
-          '<button class="btn primary" data-act="join"' + (cloud.canWrite ? "" : " disabled") + '>' + icon("users") + 'Unirme al grupo</button>' +
-          '<p class="hint">El grupo ve tu nombre, nivel, racha, cuántos hábitos hiciste esta semana y los objetivos comunes. Tus otros hábitos no se comparten.</p>' +
-          (cloud.canWrite ? "" : '<p class="hint">Tienes acceso de solo lectura. Pide al dueño que te invite como editor.</p>') + '</div>';
-      }
-      html += '<h2>Esta semana<span class="count">' + members.length + ' en el grupo</span></h2><div class="card">';
-      if (!members.length) html += '<div class="empty">Todavía no hay nadie. Únete y comparte el enlace con tus amigos.</div>';
-      members.forEach(function (m, i) {
-        const wkCount = m.weekKey === wk ? (m.week || 0) : 0;
-        const todayTxt = m.todayKey === tk ? "Hoy " + (m.todayDone || 0) + "/" + (m.todayTotal || 0) : "Hoy sin registrar";
-        html += '<div class="member' + (m.key === me ? " me" : "") + '"><div class="pos">' + (i + 1) + '</div>' +
-          '<div style="min-width:0"><div class="mn">' + esc(m.nick || "Sin nombre") + (m.key === me ? " (tú)" : "") + '</div>' +
-          '<div class="ms">LV ' + (m.level || 1) + ' · <span class="fl">Racha ' + (m.streak || 0) + '</span> · ' + todayTxt + '</div></div>' +
-          '<div class="mw">' + wkCount + '<small>HÁBITOS</small></div></div>';
+        if (g.createdBy === me) html += '<button class="btn danger ghost" style="margin-top:12px;padding:8px 12px;font-size:11px" data-delgoal="' + esc(g.id) + '">Eliminar objetivo</button>';
+        html += '</div>';
       });
       html += '</div>';
+    }
+    html += '<button class="btn ghost" style="margin-top:20px" data-act="leave">Salir del grupo</button><p class="hint">Al salir se borra tu fila del grupo. Tus hábitos se quedan.</p>';
+    return html;
+  },
 
-      html += '<h2>Objetivos comunes<span class="count">' + cloud.goals.length + '</span></h2>';
-      if (state.joined && cloud.canWrite) html += '<button class="btn primary block" data-act="newgoal">' + icon("plus") + 'Nuevo objetivo común</button><div style="height:12px"></div>';
-      if (!cloud.goals.length) html += '<div class="card empty"><strong>Sin objetivos todavía</strong>Propón uno que todos puedan cumplir, por ejemplo "Caminar 30 minutos" de lunes a viernes.</div>';
-      else {
-        html += '<div class="card">';
-        const days7 = []; for (let i = 6; i >= 0; i--) days7.push(addDays(t, -i));
-        cloud.goals.forEach(function (g) {
-          const mine = state.habits.some(function (h) { return h.goalId === g.id; });
-          const gdays = Array.isArray(g.days) ? g.days : [0, 1, 2, 3, 4, 5, 6];
-          const part = members.filter(function (m) { return m.goalDays && Array.isArray(m.goalDays[g.id]); });
-          let done = 0, target = 0;
-          part.forEach(function (m) {
-            for (let d = weekStart(t); d <= t; d = addDays(d, 1)) { if (gdays.includes(d.getDay())) { target++; if (m.goalDays[g.id].includes(key(d))) done++; } }
-          });
-          const canDel = g.createdBy === me;
-          html += '<div class="goal"><div class="goal-top"><div class="hi">' + icon(g.icon) + '</div><div style="min-width:0"><div class="gt">' + esc(g.title || "Objetivo") + '</div>' +
-            '<div class="hint" style="margin:0">' + (gdays.length === 7 ? "Diario" : gdays.map(function (d) { return WD[d]; }).join(" ")) + ' · ' + part.length + ' participando</div></div>' +
-            (mine ? '<span class="qk" style="color:var(--accent);font-size:11px;font-weight:900;letter-spacing:.1em">DENTRO</span>'
-              : '<button class="btn primary" data-joingoal="' + esc(g.id) + '"' + (state.joined ? "" : " disabled") + '>Unirme</button>') + '</div>';
-          if (part.length) {
-            html += '<div class="xpbar"><i style="width:' + (target ? done / target * 100 : 0) + '%"></i></div><div class="xpmeta"><span>Entre todos esta semana</span><span>' + done + ' / ' + target + '</span></div>';
-            html += '<div class="dots"><div class="dr hd"><span></span>' + days7.map(function (d) { return '<i>' + WD[d.getDay()] + '</i>'; }).join("") + '</div>' +
-              part.map(function (m) {
-                return '<div class="dr' + (m.key === me ? " me" : "") + '"><span>' + esc(m.nick || "Sin nombre") + '</span>' + days7.map(function (d) {
-                  const k = key(d); return '<i class="' + (!gdays.includes(d.getDay()) ? "off" : m.goalDays[g.id].includes(k) ? "on" : "") + '" title="' + k + '"></i>';
-                }).join("") + '</div>';
-              }).join("") + '</div>';
-          }
-          if (canDel) html += '<button class="btn danger ghost" style="margin-top:12px;padding:8px 12px;font-size:11px" data-delgoal="' + esc(g.id) + '">Eliminar objetivo</button>';
-          html += '</div>';
-        });
-        html += '</div>';
-      }
-      if (state.joined) html += '<button class="btn ghost" style="margin-top:20px" data-act="leave">Salir del grupo</button><p class="hint">Al salir se borra tu fila del grupo. Tus hábitos se quedan.</p>';
-      return html;
-    },
+  progreso: function () {
+    const t = today(), weeks = 15;
+    const start = addDays(weekStart(t), -7 * (weeks - 1));
+    let cells = "";
+    for (let i = 0; i < weeks * 7; i++) {
+      const d = addDays(start, i), k = key(d);
+      if (d > t) { cells += '<i class="future"></i>'; continue; }
+      if (state.frozen.includes(k)) { cells += '<i class="fz" title="' + k + ' · comodín"></i>'; continue; }
+      const s = dueOn(d).length, n = doneOn(k).length;
+      const r = s ? n / s : (n ? 1 : 0);
+      const l = n === 0 ? 0 : r < .34 ? 1 : r < .67 ? 2 : r < 1 ? 3 : 4;
+      cells += '<i data-l="' + l + '" title="' + k + ' · ' + n + '/' + s + '"></i>';
+    }
+    const yk = key(addDays(t, -1));
+    const canFreeze = state.freezes > 0 && !dayActive(yk) && dayActive(key(addDays(t, -2)));
+    const totalDone = Object.keys(state.log).reduce(function (a, k) { return a + state.log[k].length; }, 0);
+    return head("chart", "Progreso", "Últimas 15 semanas") +
+      '<div class="kpis"><div class="kpi"><b>' + globalStreak() + '</b><span>Racha</span></div><div class="kpi"><b>' + bestStreak() + '</b><span>Mejor racha</span></div><div class="kpi"><b>' + totalDone + '</b><span>Registros</span></div></div>' +
+      '<h2>Mapa de constancia</h2><div class="card"><div class="heat-wrap"><div class="heat" role="img" aria-label="Mapa de días completados">' + cells + '</div></div>' +
+      '<div class="legend">Menos <i style="background:var(--surface-2)"></i><i style="background:#4a3c08"></i><i style="background:#8a6f0c"></i><i style="background:#c9a10c"></i><i style="background:var(--accent)"></i> Más · <i style="background:#1b3a52"></i> Comodín</div>' +
+      (canFreeze ? '<p class="hint">Ayer no marcaste nada y tu racha está en riesgo.</p><button class="btn primary" style="margin-top:10px" data-act="usefreeze">' + icon("snow") + 'Usar comodín en ayer</button>' : "") +
+      '</div>' +
+      '<h2>Cumplimiento · 30 días</h2><div class="card">' +
+      (state.habits.length ? '<div class="rows">' + state.habits.map(function (h) {
+        const r = rate(h, 30);
+        return '<div class="row"><span class="rn">' + esc(h.name) + '</span><span class="rv">' + Math.round(r * 100) + '% · ' + streakLabel(h, habitStreak(h)).toLowerCase() + '</span><div class="rb"><i style="width:' + r * 100 + '%"></i></div></div>';
+      }).join("") + '</div>' : '<div class="empty">Aún no hay datos.</div>') + '</div>';
+  },
 
-    ajustes: function () {
-      return head("gear", "Ajustes", "Personaliza tu app") +
-        '<h2>Perfil</h2><div class="card"><div class="field"><label for="nameIn">Tu nombre</label><input class="input" id="nameIn" maxlength="40" value="' + esc(state.name) + '"></div>' +
-        '<button class="btn primary" data-act="savename">Guardar</button></div>' +
-        '<h2>Copia de seguridad</h2><div class="card"><p class="hint" style="margin-top:0">Tus datos viven solo en este navegador. Copia este texto y guárdalo donde quieras; pégalo abajo para restaurarlo en otro dispositivo.</p>' +
-        '<div class="field" style="margin-top:12px"><label for="exportOut">Tus datos</label><textarea id="exportOut" readonly>' + esc(JSON.stringify(state)) + '</textarea></div>' +
-        '<div class="btn-row"><button class="btn" data-act="copy">Copiar</button></div>' +
-        '<div class="field" style="margin-top:20px"><label for="importIn">Restaurar</label><textarea id="importIn" placeholder="Pega aquí tu copia"></textarea></div>' +
-        '<button class="btn" data-act="import">Restaurar copia</button></div>' +
-        '<h2>Zona peligrosa</h2><div class="card"><div class="btn-row"><button class="btn danger" data-act="reset">Borrar todo</button>' +
-        (state.example ? "" : '<button class="btn ghost" data-act="demo">Cargar ejemplo</button>') + '</div>' +
-        '<p class="hint">Borrar todo elimina hábitos, historial, XP y monedas. Toca dos veces para confirmar.</p></div>';
+  ajustes: function () {
+    const acct = session.mode === "cloud" && session.user
+      ? '<h2>Cuenta</h2><div class="card"><p class="hint" style="margin-top:0">Sesión iniciada como <b style="color:var(--fg)">' + esc(session.user.email || session.user.displayName || "Google") + '</b>. Tus hábitos se guardan en tu cuenta y se ven igual en todos tus dispositivos.</p><button class="btn" style="margin-top:12px" data-act="signout">Cerrar sesión</button></div>'
+      : '<h2>Cuenta</h2><div class="card"><p class="hint" style="margin-top:0">Modo local: tus datos viven solo en este navegador. Para iniciar sesión con Google y usar grupos, sigue la guía de configuración.</p></div>';
+    return head("gear", "Ajustes", "Personaliza tu app") +
+      '<h2>Perfil</h2><div class="card"><div class="field"><label for="nameIn">Tu nombre</label><input class="input" id="nameIn" maxlength="40" value="' + esc(state.name) + '"></div>' +
+      '<button class="btn primary" data-act="savename">Guardar</button></div>' + acct +
+      '<h2>Copia de seguridad</h2><div class="card"><div class="field"><label for="exportOut">Tus datos</label><textarea id="exportOut" readonly>' + esc(JSON.stringify(state)) + '</textarea></div>' +
+      '<div class="btn-row"><button class="btn" data-act="copy">Copiar</button></div>' +
+      '<div class="field" style="margin-top:20px"><label for="importIn">Restaurar</label><textarea id="importIn" placeholder="Pega aquí tu copia"></textarea></div>' +
+      '<button class="btn" data-act="import">Restaurar copia</button></div>' +
+      '<h2>Zona peligrosa</h2><div class="card"><div class="btn-row"><button class="btn danger" data-act="reset">Borrar todo</button>' +
+      (state.example || state.groupId ? "" : '<button class="btn ghost" data-act="demo">Cargar ejemplo</button>') + '</div>' +
+      '<p class="hint">Borrar todo elimina hábitos, historial, XP y monedas. Toca dos veces para confirmar.</p></div>';
+  }
+};
+
+function loginView() {
+  const signing = session.phase === "signing", loading = session.phase === "loading";
+  return '<section class="login"><div class="mark">' + icon("flame") + '</div>' +
+    '<div><h1>Racha</h1><p style="margin-top:10px">Tus hábitos diarios, semanales y mensuales, con XP, rachas y un grupo para cumplir objetivos con tus amigos.</p></div>' +
+    (pendingCode ? '<div class="banner" style="margin:0"><span>Te invitaron al grupo <b>' + esc(pendingCode) + '</b>. Entra para unirte.</span></div>' : "") +
+    '<button class="gbtn" data-act="signin"' + (signing || loading ? " disabled" : "") + '>' + GOOGLE_G + (loading ? "Cargando…" : signing ? "Abriendo Google…" : "Continuar con Google") + '</button>' +
+    (session.error ? '<p class="err">' + esc(session.error) + '</p>' : "") +
+    '<p class="hint">Solo usamos tu nombre, email y foto de Google para identificarte en tu grupo.</p></section>';
+}
+
+function render() {
+  const gated = session.mode === "cloud" && session.phase !== "ready";
+  document.body.classList.toggle("gate", gated);
+  if (gated) { view.innerHTML = loginView(); return; }
+  view.innerHTML = pages[route]();
+  paintIcons(view);
+  renderStatus();
+  document.querySelectorAll(".nav button").forEach(function (b) {
+    if (b.dataset.go === route) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
+  });
+}
+function go(r) {
+  if (!pages[r]) r = "hoy";
+  route = r;
+  try { history.replaceState(null, "", "#" + r); } catch (e) { /* sin historial */ }
+  render();
+  window.scrollTo(0, 0);
+}
+
+/* ---------- Formulario de hábito / objetivo ---------- */
+function openSheet(h, asGoal, preset) {
+  const editing = !!h;
+  const title = asGoal ? "Nuevo objetivo común" : editing ? "Editar hábito" : "Nuevo hábito";
+  const src = h || preset;
+  const draft = src
+    ? { name: src.name, icon: src.icon, freq: src.freq || "days", days: (src.days || [0, 1, 2, 3, 4, 5, 6]).slice(), times: src.times || 3, xp: src.xp }
+    : { name: "", icon: "book", freq: "days", days: [0, 1, 2, 3, 4, 5, 6], times: 3, xp: 20 };
+  const bg = $("#sheet");
+  bg.className = "sheet-bg";
+  bg.hidden = false;
+  function maxTimes() { return draft.freq === "week" ? 6 : 30; }
+  function draw() {
+    const fq = [["days", "Días fijos"], ["week", "Por semana"], ["month", "Por mes"]];
+    bg.innerHTML = '<form class="sheet" id="habitForm" role="dialog" aria-modal="true" aria-label="' + title + '">' +
+      '<h3>' + title + '</h3>' + (asGoal ? '<p class="hint" style="margin:-8px 0 16px">Se añade a tus hábitos y tus amigos pueden unirse desde Grupo.</p>' : "") +
+      '<div class="field"><label for="hName">Qué vas a hacer</label><input class="input" id="hName" maxlength="60" required placeholder="Ej.: Caminar 30 minutos" value="' + esc(draft.name) + '"></div>' +
+      '<div class="field"><span class="lbl">Icono</span><div class="choices">' + HABIT_ICONS.map(function (i) { return '<button type="button" class="choice" data-icon="' + i + '" aria-label="' + i + '" aria-pressed="' + (draft.icon === i) + '">' + icon(i) + '</button>'; }).join("") + '</div></div>' +
+      '<div class="field"><span class="lbl">Frecuencia</span><div class="choices">' + fq.map(function (f) { return '<button type="button" class="choice" data-freq="' + f[0] + '" aria-pressed="' + (draft.freq === f[0]) + '">' + f[1] + '</button>'; }).join("") + '</div></div>' +
+      (draft.freq === "days"
+        ? '<div class="field"><span class="lbl">Qué días</span><div class="choices">' + [1, 2, 3, 4, 5, 6, 0].map(function (d) { return '<button type="button" class="choice day" data-day="' + d + '" aria-pressed="' + draft.days.includes(d) + '">' + WD[d] + '</button>'; }).join("") + '</div></div>'
+        : '<div class="field"><span class="lbl">Cuántas veces ' + (draft.freq === "week" ? "por semana" : "por mes") + '</span><div class="stepper"><button type="button" data-step="-1" aria-label="Menos">−</button><b>' + draft.times + '</b><button type="button" data-step="1" aria-label="Más">+</button></div></div>') +
+      '<div class="field"><span class="lbl">Dificultad</span><div class="choices">' + [10, 20, 30].map(function (x) { return '<button type="button" class="choice" data-xp="' + x + '" aria-pressed="' + (draft.xp === x) + '">' + DIFF[x] + ' · ' + x + ' XP</button>'; }).join("") + '</div></div>' +
+      '<p class="hint" id="formErr" hidden></p>' +
+      '<div class="btn-row" style="margin-top:8px"><button type="submit" class="btn primary">' + (asGoal ? "Crear objetivo" : editing ? "Guardar" : "Crear hábito") + '</button><button type="button" class="btn ghost" data-close>Cancelar</button>' +
+      (editing ? '<button type="button" class="btn danger" data-del style="margin-left:auto">Eliminar</button>' : "") + '</div></form>';
+  }
+  draw();
+  if (!editing && !preset) setTimeout(function () { const n = $("#hName", bg); if (n) n.focus(); }, 50);
+
+  bg.onclick = function (e) {
+    if (e.target === bg || e.target.closest("[data-close]")) return closeSheet();
+    const ic = e.target.closest("[data-icon]"), dy = e.target.closest("[data-day]"), xp = e.target.closest("[data-xp]"),
+      fq = e.target.closest("[data-freq]"), sp = e.target.closest("[data-step]"), del = e.target.closest("[data-del]");
+    if (ic || dy || xp || fq || sp) {
+      draft.name = $("#hName", bg).value;
+      if (ic) draft.icon = ic.dataset.icon;
+      if (dy) { const d = +dy.dataset.day; draft.days = draft.days.includes(d) ? draft.days.filter(function (x) { return x !== d; }) : draft.days.concat(d); }
+      if (xp) draft.xp = +xp.dataset.xp;
+      if (fq) { draft.freq = fq.dataset.freq; draft.times = Math.min(draft.times, maxTimes()); }
+      if (sp) draft.times = Math.max(1, Math.min(maxTimes(), draft.times + +sp.dataset.step));
+      draw();
+    }
+    if (del) {
+      if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "¿Seguro? Toca otra vez"; return; }
+      state.habits = state.habits.filter(function (x) { return x.id !== h.id; });
+      Object.keys(state.log).forEach(function (k) { state.log[k] = state.log[k].filter(function (id) { return id !== h.id; }); if (!state.log[k].length) delete state.log[k]; });
+      save(); closeSheet(); render(); toast("Hábito eliminado");
     }
   };
-
-  function render() {
-    view.innerHTML = pages[route]();
-    paintIcons(view);
-    renderStatus();
-    document.querySelectorAll(".nav button").forEach(function (b) {
-      if (b.dataset.go === route) b.setAttribute("aria-current", "page"); else b.removeAttribute("aria-current");
-    });
-  }
-  function go(r) {
-    if (!pages[r]) r = "hoy";
-    route = r;
-    try { history.replaceState(null, "", "#" + r); } catch (e) { /* sin historial */ }
-    render();
-    window.scrollTo(0, 0);
-  }
-
-  /* ---------- Formulario de hábito ---------- */
-  function openSheet(h, asGoal) {
-    const editing = !!h;
-    const title = asGoal ? "Nuevo objetivo común" : editing ? "Editar hábito" : "Nuevo hábito";
-    const draft = h ? { name: h.name, icon: h.icon, days: h.days.slice(), xp: h.xp } : { name: "", icon: "book", days: [0, 1, 2, 3, 4, 5, 6], xp: 20 };
-    const bg = $("#sheet");
-    bg.className = "sheet-bg";
-    bg.hidden = false;
-    function draw() {
-      bg.innerHTML = '<form class="sheet" id="habitForm" role="dialog" aria-modal="true" aria-label="' + title + '">' +
-        '<h3>' + title + '</h3>' + (asGoal ? '<p class="hint" style="margin:-8px 0 16px">Se añade a tus hábitos y tus amigos pueden unirse desde Grupo.</p>' : "") +
-        '<div class="field"><label for="hName">Qué vas a hacer</label><input class="input" id="hName" maxlength="60" required placeholder="Ej.: Caminar 30 minutos" value="' + esc(draft.name) + '"></div>' +
-        '<div class="field"><span class="lbl">Icono</span><div class="choices">' + HABIT_ICONS.map(function (i) { return '<button type="button" class="choice" data-icon="' + i + '" aria-label="' + i + '" aria-pressed="' + (draft.icon === i) + '">' + icon(i) + '</button>'; }).join("") + '</div></div>' +
-        '<div class="field"><span class="lbl">Días</span><div class="choices">' + [1, 2, 3, 4, 5, 6, 0].map(function (d) { return '<button type="button" class="choice day" data-day="' + d + '" aria-pressed="' + draft.days.includes(d) + '">' + WD[d] + '</button>'; }).join("") + '</div></div>' +
-        '<div class="field"><span class="lbl">Dificultad</span><div class="choices">' + [10, 20, 30].map(function (x) { return '<button type="button" class="choice" data-xp="' + x + '" aria-pressed="' + (draft.xp === x) + '">' + DIFF[x] + ' · ' + x + ' XP</button>'; }).join("") + '</div></div>' +
-        '<p class="hint" id="formErr" hidden></p>' +
-        '<div class="btn-row" style="margin-top:8px"><button type="submit" class="btn primary">' + (asGoal ? "Crear objetivo" : editing ? "Guardar" : "Crear hábito") + '</button><button type="button" class="btn ghost" data-close>Cancelar</button>' +
-        (editing ? '<button type="button" class="btn danger" data-del style="margin-left:auto">Eliminar</button>' : "") + '</div></form>';
-    }
-    draw();
-    const nameIn = $("#hName", bg);
-    if (!editing) setTimeout(function () { nameIn.focus(); }, 50);
-
-    bg.onclick = function (e) {
-      if (e.target === bg || e.target.closest("[data-close]")) return closeSheet();
-      const ic = e.target.closest("[data-icon]"), dy = e.target.closest("[data-day]"), xp = e.target.closest("[data-xp]"), del = e.target.closest("[data-del]");
-      if (ic || dy || xp) {
-        draft.name = $("#hName", bg).value;
-        if (ic) draft.icon = ic.dataset.icon;
-        if (dy) { const d = +dy.dataset.day; draft.days = draft.days.includes(d) ? draft.days.filter(function (x) { return x !== d; }) : draft.days.concat(d); }
-        if (xp) draft.xp = +xp.dataset.xp;
-        draw();
-      }
-      if (del) {
-        if (!del.classList.contains("armed")) { del.classList.add("armed"); del.textContent = "¿Seguro? Toca otra vez"; return; }
-        state.habits = state.habits.filter(function (x) { return x.id !== h.id; });
-        Object.keys(state.log).forEach(function (k) { state.log[k] = state.log[k].filter(function (id) { return id !== h.id; }); if (!state.log[k].length) delete state.log[k]; });
-        save(); closeSheet(); render(); toast("Hábito eliminado");
-      }
-    };
-    bg.onsubmit = function (e) {
-      e.preventDefault();
-      const name = $("#hName", bg).value.trim(), err = $("#formErr", bg);
-      if (!name) { err.textContent = "Escribe un nombre para el hábito."; err.hidden = false; return; }
-      if (!draft.days.length) { draft.name = name; err.textContent = "Elige al menos un día."; err.hidden = false; return; }
-      draft.days.sort();
-      if (asGoal) {
-        const gid = "g" + uid() + uid();
-        const btn = bg.querySelector('[type="submit"]'); btn.disabled = true;
-        cloud.db.doc("goals/" + gid).set({ title: name, icon: draft.icon, days: draft.days, xp: draft.xp, createdBy: state.memberKey, createdAt: Date.now() })
-          .then(function () {
-            state.habits.push({ id: uid(), name: name, icon: draft.icon, days: draft.days, xp: draft.xp, goalId: gid });
-            save(); closeSheet(); render(); toast("Objetivo creado");
-          }, function (e2) { btn.disabled = false; err.textContent = e2 && e2.code === "invalid_argument" ? "No tienes permiso para crear objetivos en este grupo." : "No se pudo crear. Inténtalo de nuevo."; err.hidden = false; });
-        return;
-      }
-      if (editing) Object.assign(h, { name: name, icon: draft.icon, days: draft.days, xp: draft.xp });
-      else state.habits.push({ id: uid(), name: name, icon: draft.icon, days: draft.days, xp: draft.xp });
-      save(); closeSheet(); render(); toast(editing ? "Guardado" : "Hábito creado");
-    };
-  }
-  function closeSheet() { const bg = $("#sheet"); bg.hidden = true; bg.innerHTML = ""; }
-  document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
-
-  /* ---------- Acciones ---------- */
-  let resetArmed = false;
-  document.addEventListener("click", function (e) {
-    const goBtn = e.target.closest("[data-go]");
-    if (goBtn) return go(goBtn.dataset.go);
-
-    const tg = e.target.closest("[data-toggle]");
-    if (tg) {
-      const h = habitById(tg.dataset.toggle), k = key(today());
-      const arr = state.log[k] || (state.log[k] = []);
-      const before = levelInfo(totalXp()).level;
-      if (arr.includes(h.id)) {
-        state.log[k] = arr.filter(function (id) { return id !== h.id; });
-        if (!state.log[k].length) delete state.log[k];
-        state.coins = Math.max(0, state.coins - 1);
-      } else {
-        arr.push(h.id); state.coins += 1;
-        const after = levelInfo(totalXp()).level;
-        toast(after > before ? "¡Subiste a nivel " + after + "!" : "+" + h.xp + " XP · +1 moneda");
-      }
-      save(); render(); return;
-    }
-
-    const ed = e.target.closest("[data-edit]");
-    if (ed) return openSheet(habitById(ed.dataset.edit));
-
-    const jg = e.target.closest("[data-joingoal]");
-    if (jg) {
-      const g = cloud.goals.find(function (x) { return x.id === jg.dataset.joingoal; });
-      if (!g || state.habits.some(function (h) { return h.goalId === g.id; })) return;
-      state.habits.push({ id: uid(), name: String(g.title || "Objetivo").slice(0, 60), icon: HABIT_ICONS.includes(g.icon) ? g.icon : "star", days: Array.isArray(g.days) && g.days.length ? g.days.filter(function (d) { return d >= 0 && d <= 6; }) : [0, 1, 2, 3, 4, 5, 6], xp: [10, 20, 30].includes(g.xp) ? g.xp : 20, goalId: g.id });
-      save(); render(); toast("Te uniste al objetivo"); return;
-    }
-    const dg = e.target.closest("[data-delgoal]");
-    if (dg) {
-      if (!dg.classList.contains("armed")) { dg.classList.add("armed"); dg.textContent = "¿Seguro? Toca otra vez"; return; }
-      cloud.db.doc("goals/" + dg.dataset.delgoal).delete().then(function () { toast("Objetivo eliminado"); }, function () { toast("No se pudo eliminar"); });
+  bg.onsubmit = function (e) {
+    e.preventDefault();
+    const name = $("#hName", bg).value.trim(), err = $("#formErr", bg);
+    draft.name = name;
+    if (!name) { err.textContent = "Escribe un nombre para el hábito."; err.hidden = false; return; }
+    if (draft.freq === "days" && !draft.days.length) { err.textContent = "Elige al menos un día."; err.hidden = false; return; }
+    const fields = { name: name, icon: draft.icon, freq: draft.freq, days: draft.days.sort(), times: draft.times, xp: draft.xp };
+    if (asGoal) {
+      const btn = bg.querySelector('[type="submit"]'); btn.disabled = true;
+      const gid = "g" + uid() + uid();
+      cloud.fb.F.setDoc(fdoc("groups/" + state.groupId + "/goals/" + gid), Object.assign({ title: name, createdBy: session.uid, createdAt: Date.now() }, fields))
+        .then(function () {
+          state.habits.push(Object.assign({ id: uid(), goalId: gid }, fields));
+          save(); closeSheet(); render(); toast("Objetivo creado");
+        }, function () { btn.disabled = false; err.textContent = "No se pudo crear. Revisa tu conexión e inténtalo de nuevo."; err.hidden = false; });
       return;
     }
+    if (editing) Object.assign(h, fields);
+    else state.habits.push(Object.assign({ id: uid() }, fields));
+    save(); closeSheet(); render(); toast(editing ? "Guardado" : "Hábito creado");
+  };
+}
+function closeSheet() { const bg = $("#sheet"); bg.hidden = true; bg.innerHTML = ""; }
+document.addEventListener("keydown", function (e) { if (e.key === "Escape" && !$("#sheet").hidden) closeSheet(); });
 
-    const cl = e.target.closest("[data-claim]");
-    if (cl) {
-      const q = quests().find(function (x) { return x.id === cl.dataset.claim; });
-      if (!q || q.cur < q.goal || state.claimed[claimKey(q)]) return;
-      state.claimed[claimKey(q)] = true;
-      state.bonusXp += q.xp; state.coins += q.coins;
-      save(); render(); toast("+" + q.xp + " XP · +" + q.coins + " monedas"); return;
-    }
+/* ---------- Acciones ---------- */
+let resetArmed = false;
+function copyText(text) {
+  const fallback = function () { toast("No se pudo copiar: " + text); };
+  try { navigator.clipboard.writeText(text).then(function () { toast("Enlace copiado"); }, fallback); } catch (e) { fallback(); }
+}
+document.addEventListener("click", async function (e) {
+  const goBtn = e.target.closest("[data-go]");
+  if (goBtn) return go(goBtn.dataset.go);
 
-    const act = e.target.closest("[data-act]");
-    if (!act) return;
-    const a = act.dataset.act;
-    if (a === "new") openSheet(null);
-    else if (a === "newgoal") { if (cloud.db) openSheet(null, true); }
-    else if (a === "join") {
-      const nick = $("#nickIn").value.trim();
-      if (!nick) { $("#nickIn").focus(); toast("Escribe tu nombre"); return; }
-      if (!cloud.db || !state.memberKey || state.example) return;
-      state.name = nick; state.joined = true; save(); pushNow(); render(); toast("Ya estás en el grupo");
+  const tg = e.target.closest("[data-toggle]");
+  if (tg) {
+    const h = habitById(tg.dataset.toggle), k = key(today());
+    const arr = state.log[k] || (state.log[k] = []);
+    const before = levelInfo(totalXp()).level;
+    if (arr.includes(h.id)) {
+      state.log[k] = arr.filter(function (id) { return id !== h.id; });
+      if (!state.log[k].length) delete state.log[k];
+      state.coins = Math.max(0, state.coins - 1);
+    } else {
+      arr.push(h.id); state.coins += 1;
+      const after = levelInfo(totalXp()).level;
+      toast(after > before ? "¡Subiste a nivel " + after + "!" : "+" + h.xp + " XP · +1 moneda");
     }
-    else if (a === "leave") {
-      const k = state.memberKey;
-      state.joined = false; save(); render();
-      if (cloud.db && k) cloud.db.doc("members/" + k).delete().catch(function () {});
-      toast("Saliste del grupo");
+    save(); render(); return;
+  }
+
+  const ed = e.target.closest("[data-edit]");
+  if (ed) return openSheet(habitById(ed.dataset.edit));
+
+  const sg = e.target.closest("[data-suggest]");
+  if (sg) return openSheet(null, false, SUGGESTIONS[+sg.dataset.suggest]);
+
+  const jg = e.target.closest("[data-joingoal]");
+  if (jg) {
+    const g = cloud.goals.find(function (x) { return x.id === jg.dataset.joingoal; });
+    if (!g || state.habits.some(function (h) { return h.goalId === g.id; })) return;
+    const gh = normalize({ habits: [g] }).habits[0];
+    state.habits.push({
+      id: uid(), goalId: g.id, name: String(g.name || g.title || "Objetivo").slice(0, 60),
+      icon: HABIT_ICONS.includes(g.icon) ? g.icon : "star", freq: gh.freq,
+      days: gh.days.filter(function (d) { return d >= 0 && d <= 6; }), times: Math.max(1, Math.min(30, gh.times | 0)),
+      xp: [10, 20, 30].includes(g.xp) ? g.xp : 20
+    });
+    save(); render(); toast("Te uniste al objetivo"); return;
+  }
+  const dg = e.target.closest("[data-delgoal]");
+  if (dg) {
+    if (!dg.classList.contains("armed")) { dg.classList.add("armed"); dg.textContent = "¿Seguro? Toca otra vez"; return; }
+    try { await cloud.fb.F.deleteDoc(fdoc("groups/" + state.groupId + "/goals/" + dg.dataset.delgoal)); toast("Objetivo eliminado"); }
+    catch (err) { toast("No se pudo eliminar"); }
+    return;
+  }
+
+  const cl = e.target.closest("[data-claim]");
+  if (cl) {
+    const q = quests().find(function (x) { return x.id === cl.dataset.claim; });
+    if (!q || q.cur < q.goal || state.claimed[claimKey(q)]) return;
+    state.claimed[claimKey(q)] = true;
+    state.bonusXp += q.xp; state.coins += q.coins;
+    save(); render(); toast("+" + q.xp + " XP · +" + q.coins + " monedas"); return;
+  }
+
+  const act = e.target.closest("[data-act]");
+  if (!act) return;
+  const a = act.dataset.act;
+  if (a === "signin") signIn();
+  else if (a === "signout") { await signOutNow(); }
+  else if (a === "new") openSheet(null);
+  else if (a === "newgoal") { if (cloud.fb && state.groupId) openSheet(null, true); }
+  else if (a === "creategroup" || a === "joincode") {
+    if (busy) return;
+    const input = a === "creategroup" ? $("#gNameIn") : $("#codeIn");
+    const v = input.value.trim();
+    if (!v) { input.focus(); toast(a === "creategroup" ? "Ponle un nombre al grupo" : "Escribe el código"); return; }
+    if (!state.name) state.name = (session.user && session.user.displayName) || "Sin nombre";
+    busy = true; render();
+    try {
+      if (a === "creategroup") await createGroup(v); else await joinGroup(v);
+      pendingCode = ""; toast(a === "creategroup" ? "Grupo creado. Comparte el código" : "Ya estás en el grupo");
+    } catch (err) {
+      toast(err && err.message === "no-existe" ? "No existe un grupo con ese código" : "No se pudo. Revisa tu conexión");
     }
-    else if (a === "fresh") { state = emptyState(state); save(); go("habitos"); toast("Listo. Crea tu primer hábito"); }
-    else if (a === "demo") { state = exampleState(); save(); go("hoy"); }
-    else if (a === "buyfreeze") { if (state.coins >= 30) { state.coins -= 30; state.freezes += 1; save(); render(); toast("Comodín comprado"); } }
-    else if (a === "usefreeze") {
-      const yk = key(addDays(today(), -1));
-      if (state.freezes > 0 && !dayActive(yk)) { state.freezes -= 1; state.frozen.push(yk); save(); render(); toast("Racha protegida"); }
-    }
-    else if (a === "savename") { state.name = $("#nameIn").value.trim() || state.name; save(); render(); toast("Guardado"); }
-    else if (a === "copy") {
-      const ta = $("#exportOut");
-      const fallback = function () { ta.focus(); ta.select(); toast("Texto seleccionado: cópialo"); };
-      try { navigator.clipboard.writeText(ta.value).then(function () { toast("Copiado"); }, fallback); } catch (err) { fallback(); }
-    }
-    else if (a === "import") {
-      try {
-        const s = JSON.parse($("#importIn").value);
-        if (!s || s.v !== 1 || !Array.isArray(s.habits) || typeof s.log !== "object") throw new Error();
-        state = Object.assign(normalize(s), { memberKey: state.memberKey || s.memberKey, joined: state.joined }); save(); go("hoy"); toast("Copia restaurada");
-      } catch (err) { toast("Ese texto no es una copia válida"); }
-    }
-    else if (a === "reset") {
-      if (!resetArmed) { resetArmed = true; act.classList.add("armed"); act.textContent = "¿Seguro? Toca otra vez"; setTimeout(function () { resetArmed = false; if (act.isConnected) { act.classList.remove("armed"); act.textContent = "Borrar todo"; } }, 4000); return; }
-      resetArmed = false; state = emptyState(state); save(); go("hoy"); toast("Todo borrado");
-    }
+    busy = false; render();
+  }
+  else if (a === "copylink") copyText(inviteLink(state.groupId));
+  else if (a === "sharelink") {
+    try { await navigator.share({ title: "Únete a mi grupo en Racha", text: "Código: " + state.groupId, url: inviteLink(state.groupId) }); } catch (err) { /* cancelado */ }
+  }
+  else if (a === "leave") {
+    if (!act.classList.contains("armed")) { act.classList.add("armed", "danger"); act.textContent = "¿Seguro? Toca otra vez"; return; }
+    await leaveGroup(); toast("Saliste del grupo");
+  }
+  else if (a === "fresh") { state = emptyState(state); save(); go("habitos"); toast("Listo. Crea tu primer hábito"); }
+  else if (a === "demo") { state = exampleState(); save(); go("hoy"); }
+  else if (a === "buyfreeze") { if (state.coins >= 30) { state.coins -= 30; state.freezes += 1; save(); render(); toast("Comodín comprado"); } }
+  else if (a === "usefreeze") {
+    const yk = key(addDays(today(), -1));
+    if (state.freezes > 0 && !dayActive(yk)) { state.freezes -= 1; state.frozen.push(yk); save(); render(); toast("Racha protegida"); }
+  }
+  else if (a === "savename") { state.name = $("#nameIn").value.trim() || state.name; save(); render(); toast("Guardado"); }
+  else if (a === "copy") {
+    const ta = $("#exportOut");
+    const fallback = function () { ta.focus(); ta.select(); toast("Texto seleccionado: cópialo"); };
+    try { navigator.clipboard.writeText(ta.value).then(function () { toast("Copiado"); }, fallback); } catch (err) { fallback(); }
+  }
+  else if (a === "import") {
+    try {
+      const s = JSON.parse($("#importIn").value);
+      if (!s || s.v !== 1 || !Array.isArray(s.habits) || typeof s.log !== "object") throw new Error();
+      state = Object.assign(normalize(s), { groupId: state.groupId }); save(); go("hoy"); toast("Copia restaurada");
+    } catch (err) { toast("Ese texto no es una copia válida"); }
+  }
+  else if (a === "reset") {
+    if (!resetArmed) { resetArmed = true; act.classList.add("armed"); act.textContent = "¿Seguro? Toca otra vez"; setTimeout(function () { resetArmed = false; if (act.isConnected) { act.classList.remove("armed"); act.textContent = "Borrar todo"; } }, 4000); return; }
+    resetArmed = false; state = emptyState(state); save(); go("hoy"); toast("Todo borrado");
+  }
+});
+
+/* ---------- Inicio ---------- */
+const hash = (location.hash || "").replace("#", "");
+if (/^unirse-[A-Za-z0-9]+$/.test(hash)) { pendingCode = hash.slice(7).toUpperCase(); route = "grupo"; }
+else if (pages[hash]) route = hash;
+paintIcons(document);
+if (session.mode === "local") {
+  state = readLocal() || exampleState();
+  go(route);
+} else {
+  state = emptyState();
+  render();
+  initFirebase().catch(function () {
+    session.phase = "login"; session.error = "No se pudo cargar el inicio de sesión. Revisa tu conexión y recarga.";
+    render();
   });
-
-  /* ---------- Inicio ---------- */
-  state = load();
-  paintIcons(document);
-  const initial = (location.hash || "").replace("#", "");
-  go(pages[initial] ? initial : "hoy");
-  connect();
-})();
+}
 </script>
 </body>
 </html>

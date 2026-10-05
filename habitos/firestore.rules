@@ -1,0 +1,46 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+
+    // Hábitos e historial de cada persona: solo los ve y edita su dueño.
+    match /users/{uid}/{rest=**} {
+      allow read, write: if signedIn() && request.auth.uid == uid;
+    }
+
+    match /groups/{gid} {
+      function isMember() {
+        return exists(/databases/$(database)/documents/groups/$(gid)/members/$(request.auth.uid));
+      }
+      // Conocer el código basta para ver el nombre del grupo y unirse.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 40;
+      allow update, delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // Resumen de cada miembro: cada uno escribe solo el suyo.
+      match /members/{uid} {
+        allow read: if signedIn() && isMember();
+        allow create, update: if signedIn() && request.auth.uid == uid
+          && exists(/databases/$(database)/documents/groups/$(gid))
+          && request.resource.data.nick is string
+          && request.resource.data.nick.size() <= 40;
+        allow delete: if signedIn() && (request.auth.uid == uid
+          || get(/databases/$(database)/documents/groups/$(gid)).data.ownerUid == request.auth.uid);
+      }
+
+      // Objetivos comunes: los crea cualquier miembro, los borra quien los creó.
+      match /goals/{goalId} {
+        allow read: if signedIn() && isMember();
+        allow create: if signedIn() && isMember()
+          && request.resource.data.createdBy == request.auth.uid
+          && request.resource.data.name is string
+          && request.resource.data.name.size() <= 60;
+        allow update, delete: if signedIn() && isMember() && resource.data.createdBy == request.auth.uid;
+      }
+    }
+  }
+}
