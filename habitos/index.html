@@ -326,6 +326,31 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
 }
 @keyframes pop { from { transform: translate(-50%, 10px) scale(.9); opacity: 0; } }
 
+/* Grupo */
+.member { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; }
+.member + .member { margin-top: 14px; padding-top: 14px; border-top: 2px solid var(--line); }
+.member .pos { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; background: var(--surface-2); border: 2px solid var(--line); font-weight: 900; font-stretch: 115%; font-size: 13px; }
+.member.me .pos { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.member .mn { font-weight: 800; min-width: 0; overflow-wrap: anywhere; }
+.member .ms { font-size: 12px; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; font-variant-numeric: tabular-nums; }
+.member .ms .fl { color: var(--flame); }
+.member .mw { text-align: right; font-family: var(--font-display); font-weight: 900; font-stretch: 115%; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1; }
+.member .mw small { display: block; font-family: var(--font-body); font-size: 10px; color: var(--muted); letter-spacing: .08em; margin-top: 4px; }
+.goal + .goal { margin-top: 18px; padding-top: 18px; border-top: 2px solid var(--line); }
+.goal-top { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; align-items: center; }
+.goal-top .hi { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; background: var(--accent-dim); color: var(--accent); }
+.goal-top .hi svg { width: 22px; height: 22px; }
+.goal .gt { font-weight: 800; font-size: 16px; overflow-wrap: anywhere; }
+.goal .btn { padding: 10px 14px; font-size: 12px; }
+.dots { margin-top: 12px; display: grid; gap: 6px; }
+.dots .dr { display: grid; grid-template-columns: minmax(0, 1fr) repeat(7, 18px); gap: 4px; align-items: center; font-size: 12px; font-weight: 800; color: var(--muted); }
+.dots .dr span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dots .dr.me span:first-child { color: var(--fg); }
+.dots i { width: 18px; height: 18px; border-radius: 5px; background: var(--surface-2); display: grid; place-items: center; font-style: normal; font-size: 9px; color: var(--muted); }
+.dots i.on { background: var(--accent); }
+.dots i.off { background: transparent; border: 1px dashed var(--line); }
+.dots .hd i { background: transparent; }
+
 @media (max-width: 400px) {
   .status { gap: 10px; }
   .stat { font-size: 15px; }
@@ -356,8 +381,8 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
     <button data-go="habitos"><svg data-i="list"></svg>Hábitos</button>
     <button data-go="retos"><svg data-i="target"></svg>Retos</button>
     <button data-go="hoy" class="center"><span class="orb"><svg data-i="check"></svg></span>Hoy</button>
+    <button data-go="grupo"><svg data-i="users"></svg>Grupo</button>
     <button data-go="progreso"><svg data-i="chart"></svg>Progreso</button>
-    <button data-go="ajustes"><svg data-i="gear"></svg>Más</button>
   </div>
 </nav>
 
@@ -388,7 +413,8 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
     dumbbell: '<path d="M6 7v10M3 9v6M18 7v10M21 9v6M6 12h12"/>',
     pen: '<path d="M4 20l4-1L19 8l-3-3L5 16z"/><path d="M14 7l3 3"/>',
     phone: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><path d="M4 4l16 16"/>',
-    snow: '<path d="M12 2v20M4 7l16 10M20 7L4 17"/>'
+    snow: '<path d="M12 2v20M4 7l16 10M20 7L4 17"/>',
+    users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.6 3.2-5.5 6.5-5.5s5.9 1.9 6.5 5.5"/><path d="M15.5 4.8a3.5 3.5 0 0 1 0 6.4M18 14.8c1.9.7 3.1 2.4 3.5 5.2"/>'
   };
   const HABIT_ICONS = ["book", "run", "water", "moon", "leaf", "brain", "dumbbell", "pen", "phone"];
   function icon(name) {
@@ -443,19 +469,108 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
       if (!log[k] || !log[k].length) log[k] = [habits[1].id];
     }
     log[key(t)] = [habits[1].id];
-    return { v: 1, name: "Jose", habits: habits, log: log, bonusXp: 60, coins: 45, freezes: 1, frozen: [], claimed: {}, example: true };
+    return { v: 1, name: "", habits: habits, log: log, bonusXp: 60, coins: 45, freezes: 1, frozen: [], claimed: {}, example: true, memberKey: null, joined: false, savedAt: 0 };
   }
-  function emptyState(name) {
-    return { v: 1, name: name || "Jose", habits: [], log: {}, bonusXp: 0, coins: 0, freezes: 0, frozen: [], claimed: {}, example: false };
+  function emptyState(prev) {
+    prev = prev || {};
+    return { v: 1, name: prev.name || "", habits: [], log: {}, bonusXp: 0, coins: 0, freezes: 0, frozen: [], claimed: {}, example: false, memberKey: prev.memberKey || null, joined: !!prev.joined, savedAt: 0 };
   }
+  function normalize(s) { return Object.assign(emptyState(), s); }
   function load() {
     try {
       const raw = localStorage.getItem(STORE);
-      if (raw) { const s = JSON.parse(raw); if (s && s.v === 1 && Array.isArray(s.habits)) return s; }
+      if (raw) { const s = JSON.parse(raw); if (s && s.v === 1 && Array.isArray(s.habits)) return normalize(s); }
     } catch (e) { /* almacenamiento no disponible */ }
     return exampleState();
   }
-  function save() { try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* sin persistencia */ } }
+  function save() {
+    state.savedAt = Date.now();
+    try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) { /* sin persistencia */ }
+    scheduleSync();
+  }
+
+  /* ---------- Sincronización (solo dentro de Claude) ----------
+     Privado: data/users/<id>/app/state  (tus hábitos, en todos tus dispositivos)
+     Compartido: members/<clave>  (tu resumen para el grupo)
+                 goals/<id>       (objetivos comunes)                          */
+  const cloud = { db: null, uid: null, ready: false, members: [], goals: [], canWrite: true, error: "" };
+  let syncTimer = null, syncChain = Promise.resolve();
+
+  function memberDoc() {
+    const t = today(), tk = key(t), sched = scheduledOn(t);
+    let week = 0;
+    for (let d = weekStart(t); d <= t; d = addDays(d, 1)) week += doneOn(key(d)).length;
+    const goalDays = {};
+    state.habits.forEach(function (h) {
+      if (!h.goalId) return;
+      const days = [];
+      for (let i = 0; i < 14; i++) { const k = key(addDays(t, -i)); if (isDone(h, k)) days.push(k); }
+      goalDays[h.goalId] = days;
+    });
+    const xp = totalXp();
+    return {
+      nick: (state.name || "Sin nombre").slice(0, 40), level: levelInfo(xp).level, xp: xp,
+      streak: globalStreak(), week: week, weekKey: key(weekStart(t)),
+      todayKey: tk, todayDone: sched.filter(function (h) { return isDone(h, tk); }).length, todayTotal: sched.length,
+      goalDays: goalDays, updatedAt: Date.now()
+    };
+  }
+  function scheduleSync() {
+    if (!cloud.db) return;
+    clearTimeout(syncTimer);
+    syncTimer = setTimeout(pushNow, 900);
+  }
+  function pushNow() {
+    if (!cloud.db) return;
+    const snapshot = JSON.parse(JSON.stringify(state));
+    const mdoc = state.joined && state.memberKey ? memberDoc() : null;
+    syncChain = syncChain.then(function () {
+      const jobs = [];
+      if (cloud.uid) jobs.push(cloud.db.doc("data/users/" + cloud.uid + "/app/state").set({ json: JSON.stringify(snapshot) }).catch(function () {}));
+      if (mdoc && cloud.canWrite) jobs.push(cloud.db.doc("members/" + state.memberKey).set(mdoc).catch(onWriteError));
+      return Promise.all(jobs);
+    });
+  }
+  function onWriteError(e) {
+    if (e && e.code === "invalid_argument") { cloud.canWrite = false; cloud.error = "Tu acceso a esta app es de solo lectura. Pide al dueño que te invite como editor."; }
+    else if (e && e.code === "quota_exceeded") cloud.error = "El grupo llegó al límite de espacio.";
+    else cloud.error = "No se pudo guardar en el grupo. Se reintentará con tu próximo cambio.";
+    if (route === "grupo") render();
+  }
+  async function connect() {
+    if (!window.claude || typeof window.claude.use !== "function") { cloud.ready = true; return; }
+    try {
+      const results = await Promise.all([window.claude.use("db"), window.claude.use("user")]);
+      const db = results[0], user = results[1];
+      if (!db) { cloud.ready = true; if (route === "grupo") render(); return; }
+      cloud.db = db;
+      cloud.uid = user ? await user.id() : null;
+      if (user) { const w = await user.can("data.write"); if (w === false) cloud.canWrite = false; }
+      if (cloud.uid) {
+        const snap = await db.doc("data/users/" + cloud.uid + "/app/state").get().catch(function () { return null; });
+        if (snap && snap.exists) {
+          try {
+            const remote = normalize(JSON.parse(snap.data().json));
+            // Si este dispositivo solo tiene el ejemplo, o la nube es más reciente, usamos la nube.
+            if (state.example || remote.savedAt > state.savedAt) { state = remote; try { localStorage.setItem(STORE, JSON.stringify(state)); } catch (e) {} }
+          } catch (e) { /* copia dañada: nos quedamos con la local */ }
+        }
+      }
+      if (!state.memberKey) { state.memberKey = cloud.uid || ("m" + uid() + uid()); save(); }
+      db.collection("members").onSnapshot(function (q) {
+        cloud.members = q.docs.map(function (d) { return Object.assign({ key: d.id }, d.data()); });
+        if (route === "grupo") render(); else renderStatus();
+      }, function () {});
+      db.collection("goals").onSnapshot(function (q) {
+        cloud.goals = q.docs.map(function (d) { return Object.assign({ id: d.id }, d.data()); })
+          .sort(function (a, b) { return (a.createdAt || 0) - (b.createdAt || 0); });
+        if (route === "grupo") render();
+      }, function () {});
+      cloud.ready = true;
+      render();
+      if (state.joined) scheduleSync();
+    } catch (e) { cloud.ready = true; if (route === "grupo") render(); }
+  }
 
   /* ---------- Cálculos ---------- */
   function scheduledOn(d) { return state.habits.filter(function (h) { return h.days.includes(d.getDay()); }); }
@@ -575,7 +690,7 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
       ? '<button class="edit" data-edit="' + h.id + '">Editar</button>'
       : '<button class="check" data-toggle="' + h.id + '" aria-pressed="' + done + '" aria-label="' + (done ? "Desmarcar " : "Marcar ") + esc(h.name) + '">' + icon("check") + '</button>';
     return '<div class="habit' + (done && mode !== "manage" ? " done" : "") + '"><div class="hi">' + icon(h.icon) + '</div>' +
-      '<div class="meta"><div class="name">' + esc(h.name) + '</div><div class="tags"><span>+' + h.xp + ' XP</span><span class="fl">Racha ' + st + '</span><span>' + days + '</span></div></div>' +
+      '<div class="meta"><div class="name">' + esc(h.name) + '</div><div class="tags"><span>+' + h.xp + ' XP</span><span class="fl">Racha ' + st + '</span><span>' + days + '</span>' + (h.goalId ? '<span style="color:var(--accent)">Común</span>' : "") + '</div></div>' +
       action + '</div>';
   }
 
@@ -671,6 +786,73 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
         }).join("") + '</div>' : '<div class="empty">Aún no hay datos.</div>') + '</div>';
     },
 
+    grupo: function () {
+      const top = head("users", "Grupo", "Objetivos con tus amigos");
+      if (!cloud.ready) return top + '<div class="card empty"><strong>Conectando</strong>Buscando a tu grupo…</div>';
+      if (!cloud.db) return top + '<div class="card empty"><strong>Grupo no disponible aquí</strong>El grupo funciona cuando abres la app desde su enlace de Claude con tu cuenta iniciada. Tus hábitos personales siguen funcionando igual.</div>';
+      const t = today(), tk = key(t), wk = key(weekStart(t)), me = state.memberKey;
+      const members = cloud.members.slice().sort(function (a, b) {
+        return ((b.weekKey === wk ? b.week : 0) - (a.weekKey === wk ? a.week : 0)) || ((b.streak || 0) - (a.streak || 0));
+      });
+      let html = top;
+      if (cloud.error) html += '<div class="banner"><span>' + esc(cloud.error) + '</span></div>';
+      if (!state.joined && state.example) {
+        html += '<div class="card empty"><strong>Primero, tus datos reales</strong>Ahora ves datos de ejemplo. Bórralos para que el grupo vea tu progreso de verdad.<br><br><button class="btn primary" data-act="fresh">Empezar de cero</button></div>';
+      } else if (!state.joined) {
+        html += '<div class="card"><div class="field"><label for="nickIn">Tu nombre en el grupo</label><input class="input" id="nickIn" maxlength="40" placeholder="Cómo te verán tus amigos" value="' + esc(state.name) + '"></div>' +
+          '<button class="btn primary" data-act="join"' + (cloud.canWrite ? "" : " disabled") + '>' + icon("users") + 'Unirme al grupo</button>' +
+          '<p class="hint">El grupo ve tu nombre, nivel, racha, cuántos hábitos hiciste esta semana y los objetivos comunes. Tus otros hábitos no se comparten.</p>' +
+          (cloud.canWrite ? "" : '<p class="hint">Tienes acceso de solo lectura. Pide al dueño que te invite como editor.</p>') + '</div>';
+      }
+      html += '<h2>Esta semana<span class="count">' + members.length + ' en el grupo</span></h2><div class="card">';
+      if (!members.length) html += '<div class="empty">Todavía no hay nadie. Únete y comparte el enlace con tus amigos.</div>';
+      members.forEach(function (m, i) {
+        const wkCount = m.weekKey === wk ? (m.week || 0) : 0;
+        const todayTxt = m.todayKey === tk ? "Hoy " + (m.todayDone || 0) + "/" + (m.todayTotal || 0) : "Hoy sin registrar";
+        html += '<div class="member' + (m.key === me ? " me" : "") + '"><div class="pos">' + (i + 1) + '</div>' +
+          '<div style="min-width:0"><div class="mn">' + esc(m.nick || "Sin nombre") + (m.key === me ? " (tú)" : "") + '</div>' +
+          '<div class="ms">LV ' + (m.level || 1) + ' · <span class="fl">Racha ' + (m.streak || 0) + '</span> · ' + todayTxt + '</div></div>' +
+          '<div class="mw">' + wkCount + '<small>HÁBITOS</small></div></div>';
+      });
+      html += '</div>';
+
+      html += '<h2>Objetivos comunes<span class="count">' + cloud.goals.length + '</span></h2>';
+      if (state.joined && cloud.canWrite) html += '<button class="btn primary block" data-act="newgoal">' + icon("plus") + 'Nuevo objetivo común</button><div style="height:12px"></div>';
+      if (!cloud.goals.length) html += '<div class="card empty"><strong>Sin objetivos todavía</strong>Propón uno que todos puedan cumplir, por ejemplo "Caminar 30 minutos" de lunes a viernes.</div>';
+      else {
+        html += '<div class="card">';
+        const days7 = []; for (let i = 6; i >= 0; i--) days7.push(addDays(t, -i));
+        cloud.goals.forEach(function (g) {
+          const mine = state.habits.some(function (h) { return h.goalId === g.id; });
+          const gdays = Array.isArray(g.days) ? g.days : [0, 1, 2, 3, 4, 5, 6];
+          const part = members.filter(function (m) { return m.goalDays && Array.isArray(m.goalDays[g.id]); });
+          let done = 0, target = 0;
+          part.forEach(function (m) {
+            for (let d = weekStart(t); d <= t; d = addDays(d, 1)) { if (gdays.includes(d.getDay())) { target++; if (m.goalDays[g.id].includes(key(d))) done++; } }
+          });
+          const canDel = g.createdBy === me;
+          html += '<div class="goal"><div class="goal-top"><div class="hi">' + icon(g.icon) + '</div><div style="min-width:0"><div class="gt">' + esc(g.title || "Objetivo") + '</div>' +
+            '<div class="hint" style="margin:0">' + (gdays.length === 7 ? "Diario" : gdays.map(function (d) { return WD[d]; }).join(" ")) + ' · ' + part.length + ' participando</div></div>' +
+            (mine ? '<span class="qk" style="color:var(--accent);font-size:11px;font-weight:900;letter-spacing:.1em">DENTRO</span>'
+              : '<button class="btn primary" data-joingoal="' + esc(g.id) + '"' + (state.joined ? "" : " disabled") + '>Unirme</button>') + '</div>';
+          if (part.length) {
+            html += '<div class="xpbar"><i style="width:' + (target ? done / target * 100 : 0) + '%"></i></div><div class="xpmeta"><span>Entre todos esta semana</span><span>' + done + ' / ' + target + '</span></div>';
+            html += '<div class="dots"><div class="dr hd"><span></span>' + days7.map(function (d) { return '<i>' + WD[d.getDay()] + '</i>'; }).join("") + '</div>' +
+              part.map(function (m) {
+                return '<div class="dr' + (m.key === me ? " me" : "") + '"><span>' + esc(m.nick || "Sin nombre") + '</span>' + days7.map(function (d) {
+                  const k = key(d); return '<i class="' + (!gdays.includes(d.getDay()) ? "off" : m.goalDays[g.id].includes(k) ? "on" : "") + '" title="' + k + '"></i>';
+                }).join("") + '</div>';
+              }).join("") + '</div>';
+          }
+          if (canDel) html += '<button class="btn danger ghost" style="margin-top:12px;padding:8px 12px;font-size:11px" data-delgoal="' + esc(g.id) + '">Eliminar objetivo</button>';
+          html += '</div>';
+        });
+        html += '</div>';
+      }
+      if (state.joined) html += '<button class="btn ghost" style="margin-top:20px" data-act="leave">Salir del grupo</button><p class="hint">Al salir se borra tu fila del grupo. Tus hábitos se quedan.</p>';
+      return html;
+    },
+
     ajustes: function () {
       return head("gear", "Ajustes", "Personaliza tu app") +
         '<h2>Perfil</h2><div class="card"><div class="field"><label for="nameIn">Tu nombre</label><input class="input" id="nameIn" maxlength="40" value="' + esc(state.name) + '"></div>' +
@@ -703,21 +885,22 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
   }
 
   /* ---------- Formulario de hábito ---------- */
-  function openSheet(h) {
+  function openSheet(h, asGoal) {
     const editing = !!h;
+    const title = asGoal ? "Nuevo objetivo común" : editing ? "Editar hábito" : "Nuevo hábito";
     const draft = h ? { name: h.name, icon: h.icon, days: h.days.slice(), xp: h.xp } : { name: "", icon: "book", days: [0, 1, 2, 3, 4, 5, 6], xp: 20 };
     const bg = $("#sheet");
     bg.className = "sheet-bg";
     bg.hidden = false;
     function draw() {
-      bg.innerHTML = '<form class="sheet" id="habitForm" role="dialog" aria-modal="true" aria-label="' + (editing ? "Editar hábito" : "Nuevo hábito") + '">' +
-        '<h3>' + (editing ? "Editar hábito" : "Nuevo hábito") + '</h3>' +
+      bg.innerHTML = '<form class="sheet" id="habitForm" role="dialog" aria-modal="true" aria-label="' + title + '">' +
+        '<h3>' + title + '</h3>' + (asGoal ? '<p class="hint" style="margin:-8px 0 16px">Se añade a tus hábitos y tus amigos pueden unirse desde Grupo.</p>' : "") +
         '<div class="field"><label for="hName">Qué vas a hacer</label><input class="input" id="hName" maxlength="60" required placeholder="Ej.: Caminar 30 minutos" value="' + esc(draft.name) + '"></div>' +
         '<div class="field"><span class="lbl">Icono</span><div class="choices">' + HABIT_ICONS.map(function (i) { return '<button type="button" class="choice" data-icon="' + i + '" aria-label="' + i + '" aria-pressed="' + (draft.icon === i) + '">' + icon(i) + '</button>'; }).join("") + '</div></div>' +
         '<div class="field"><span class="lbl">Días</span><div class="choices">' + [1, 2, 3, 4, 5, 6, 0].map(function (d) { return '<button type="button" class="choice day" data-day="' + d + '" aria-pressed="' + draft.days.includes(d) + '">' + WD[d] + '</button>'; }).join("") + '</div></div>' +
         '<div class="field"><span class="lbl">Dificultad</span><div class="choices">' + [10, 20, 30].map(function (x) { return '<button type="button" class="choice" data-xp="' + x + '" aria-pressed="' + (draft.xp === x) + '">' + DIFF[x] + ' · ' + x + ' XP</button>'; }).join("") + '</div></div>' +
         '<p class="hint" id="formErr" hidden></p>' +
-        '<div class="btn-row" style="margin-top:8px"><button type="submit" class="btn primary">' + (editing ? "Guardar" : "Crear hábito") + '</button><button type="button" class="btn ghost" data-close>Cancelar</button>' +
+        '<div class="btn-row" style="margin-top:8px"><button type="submit" class="btn primary">' + (asGoal ? "Crear objetivo" : editing ? "Guardar" : "Crear hábito") + '</button><button type="button" class="btn ghost" data-close>Cancelar</button>' +
         (editing ? '<button type="button" class="btn danger" data-del style="margin-left:auto">Eliminar</button>' : "") + '</div></form>';
     }
     draw();
@@ -746,8 +929,19 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
       const name = $("#hName", bg).value.trim(), err = $("#formErr", bg);
       if (!name) { err.textContent = "Escribe un nombre para el hábito."; err.hidden = false; return; }
       if (!draft.days.length) { draft.name = name; err.textContent = "Elige al menos un día."; err.hidden = false; return; }
-      if (editing) Object.assign(h, { name: name, icon: draft.icon, days: draft.days.sort(), xp: draft.xp });
-      else state.habits.push({ id: uid(), name: name, icon: draft.icon, days: draft.days.sort(), xp: draft.xp });
+      draft.days.sort();
+      if (asGoal) {
+        const gid = "g" + uid() + uid();
+        const btn = bg.querySelector('[type="submit"]'); btn.disabled = true;
+        cloud.db.doc("goals/" + gid).set({ title: name, icon: draft.icon, days: draft.days, xp: draft.xp, createdBy: state.memberKey, createdAt: Date.now() })
+          .then(function () {
+            state.habits.push({ id: uid(), name: name, icon: draft.icon, days: draft.days, xp: draft.xp, goalId: gid });
+            save(); closeSheet(); render(); toast("Objetivo creado");
+          }, function (e2) { btn.disabled = false; err.textContent = e2 && e2.code === "invalid_argument" ? "No tienes permiso para crear objetivos en este grupo." : "No se pudo crear. Inténtalo de nuevo."; err.hidden = false; });
+        return;
+      }
+      if (editing) Object.assign(h, { name: name, icon: draft.icon, days: draft.days, xp: draft.xp });
+      else state.habits.push({ id: uid(), name: name, icon: draft.icon, days: draft.days, xp: draft.xp });
       save(); closeSheet(); render(); toast(editing ? "Guardado" : "Hábito creado");
     };
   }
@@ -780,6 +974,20 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
     const ed = e.target.closest("[data-edit]");
     if (ed) return openSheet(habitById(ed.dataset.edit));
 
+    const jg = e.target.closest("[data-joingoal]");
+    if (jg) {
+      const g = cloud.goals.find(function (x) { return x.id === jg.dataset.joingoal; });
+      if (!g || state.habits.some(function (h) { return h.goalId === g.id; })) return;
+      state.habits.push({ id: uid(), name: String(g.title || "Objetivo").slice(0, 60), icon: HABIT_ICONS.includes(g.icon) ? g.icon : "star", days: Array.isArray(g.days) && g.days.length ? g.days.filter(function (d) { return d >= 0 && d <= 6; }) : [0, 1, 2, 3, 4, 5, 6], xp: [10, 20, 30].includes(g.xp) ? g.xp : 20, goalId: g.id });
+      save(); render(); toast("Te uniste al objetivo"); return;
+    }
+    const dg = e.target.closest("[data-delgoal]");
+    if (dg) {
+      if (!dg.classList.contains("armed")) { dg.classList.add("armed"); dg.textContent = "¿Seguro? Toca otra vez"; return; }
+      cloud.db.doc("goals/" + dg.dataset.delgoal).delete().then(function () { toast("Objetivo eliminado"); }, function () { toast("No se pudo eliminar"); });
+      return;
+    }
+
     const cl = e.target.closest("[data-claim]");
     if (cl) {
       const q = quests().find(function (x) { return x.id === cl.dataset.claim; });
@@ -793,7 +1001,20 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
     if (!act) return;
     const a = act.dataset.act;
     if (a === "new") openSheet(null);
-    else if (a === "fresh") { state = emptyState(state.name); save(); go("habitos"); toast("Listo. Crea tu primer hábito"); }
+    else if (a === "newgoal") { if (cloud.db) openSheet(null, true); }
+    else if (a === "join") {
+      const nick = $("#nickIn").value.trim();
+      if (!nick) { $("#nickIn").focus(); toast("Escribe tu nombre"); return; }
+      if (!cloud.db || !state.memberKey || state.example) return;
+      state.name = nick; state.joined = true; save(); pushNow(); render(); toast("Ya estás en el grupo");
+    }
+    else if (a === "leave") {
+      const k = state.memberKey;
+      state.joined = false; save(); render();
+      if (cloud.db && k) cloud.db.doc("members/" + k).delete().catch(function () {});
+      toast("Saliste del grupo");
+    }
+    else if (a === "fresh") { state = emptyState(state); save(); go("habitos"); toast("Listo. Crea tu primer hábito"); }
     else if (a === "demo") { state = exampleState(); save(); go("hoy"); }
     else if (a === "buyfreeze") { if (state.coins >= 30) { state.coins -= 30; state.freezes += 1; save(); render(); toast("Comodín comprado"); } }
     else if (a === "usefreeze") {
@@ -810,12 +1031,12 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
       try {
         const s = JSON.parse($("#importIn").value);
         if (!s || s.v !== 1 || !Array.isArray(s.habits) || typeof s.log !== "object") throw new Error();
-        state = Object.assign(emptyState(), s); save(); go("hoy"); toast("Copia restaurada");
+        state = Object.assign(normalize(s), { memberKey: state.memberKey || s.memberKey, joined: state.joined }); save(); go("hoy"); toast("Copia restaurada");
       } catch (err) { toast("Ese texto no es una copia válida"); }
     }
     else if (a === "reset") {
       if (!resetArmed) { resetArmed = true; act.classList.add("armed"); act.textContent = "¿Seguro? Toca otra vez"; setTimeout(function () { resetArmed = false; if (act.isConnected) { act.classList.remove("armed"); act.textContent = "Borrar todo"; } }, 4000); return; }
-      resetArmed = false; state = emptyState(state.name); save(); go("hoy"); toast("Todo borrado");
+      resetArmed = false; state = emptyState(state); save(); go("hoy"); toast("Todo borrado");
     }
   });
 
@@ -824,6 +1045,7 @@ textarea { min-height: 120px; font-size: 12px; font-family: ui-monospace, Menlo,
   paintIcons(document);
   const initial = (location.hash || "").replace("#", "");
   go(pages[initial] ? initial : "hoy");
+  connect();
 })();
 </script>
 </body>
